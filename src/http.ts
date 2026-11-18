@@ -19,16 +19,35 @@ export function createApp({ service, auth }: { service: Service; auth: Auth | nu
     if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);
     if (err instanceof AppError) return c.json({ error: err.message }, err.status);
     console.error(err);
-    // у ошибок драйвера (DrizzleQueryError) суть — в cause; текст запроса с параметрами наружу не отдаём
+    // в облаке внутренности (SQL, имена таблиц) наружу не отдаём — подробности в логах Vercel
+    if (process.env.VERCEL) return c.json({ error: 'Ошибка сервера. Попробуйте ещё раз.' }, 500);
+    // локально у ошибок драйвера (DrizzleQueryError) суть — в cause
     const cause = (err as { cause?: { message?: string; code?: string } }).cause;
     const message = cause?.message ? `${cause.code ? `${cause.code}: ` : ''}${cause.message}` : String(err.message || err);
     return c.json({ error: message }, 500);
   });
 
+  // Продакшен отвечает только на своём домене: старые адреса деплоев *.vercel.app открыты, и через них
+  // можно было бы ходить в боевой API в обход домена (и старого кода).
+  const canonical = process.env.VERCEL_ENV === 'production' && process.env.BETTER_AUTH_URL ? new URL(process.env.BETTER_AUTH_URL) : null;
+  if (canonical)
+    app.use('*', async (c, next) => {
+      const host = (c.req.header('x-forwarded-host') ?? c.req.header('host') ?? '').split(',')[0].trim();
+      if (host === canonical.host) return next();
+      const url = new URL(c.req.url);
+      if (c.req.method === 'GET' || c.req.method === 'HEAD') return c.redirect(`${canonical.origin}${url.pathname}${url.search}`, 308);
+      return c.json({ error: `Используйте ${canonical.origin}` }, 421);
+    });
+
   // --- вход (Better Auth) и OAuth-метаданные для MCP-коннекторов ------------------
   if (auth) {
     const asMetadata = oauthProviderAuthServerMetadata(auth);
     const oidcMetadata = oauthProviderOpenIdConfigMetadata(auth);
+    // регистрация OAuth-клиентов — с общим лимитом и чисткой брошенных (см. service/oauth-clients.ts)
+    app.post('/api/auth/oauth2/register', async (c) => {
+      await service.guardClientRegistration();
+      return auth.handler(c.req.raw);
+    });
     app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
     for (const p of ['/.well-known/oauth-authorization-server', '/.well-known/oauth-authorization-server/*'])
       app.get(p, (c) => asMetadata(c.req.raw));
@@ -44,7 +63,7 @@ export function createApp({ service, auth }: { service: Service; auth: Auth | nu
     if (!auth || !authConfigured())
       throw new HTTPException(503, { message: 'Вход не настроен: нужны GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, ADMIN_GITHUB_USERS' });
     const s = await auth.api.getSession({ headers: c.req.raw.headers });
-    return s ? service.resolveViewer(s.user.name) : null;
+    return s ? service.resolveViewer(s.user.id) : null;
   };
   const guard = async (c: Context<Env>, next: Next) => {
     const v = await viewerOf(c);
@@ -58,8 +77,7 @@ export function createApp({ service, auth }: { service: Service; auth: Auth | nu
     ? requireMcpAuth(
         auth,
         async (req, claims) => {
-          const login = claims.sub ? await service.loginByUserId(claims.sub) : null;
-          const viewer = login ? await service.resolveViewer(login) : null;
+          const viewer = claims.sub ? await service.resolveViewer(claims.sub) : null;
           if (!viewer) return Response.json({ error: 'Нет доступа: вы не участник буса' }, { status: 403 });
           return createMcp(service, viewer).fetch(req);
         },
@@ -92,6 +110,16 @@ export function createApp({ service, auth }: { service: Service; auth: Auth | nu
 
   // --- API приложения ------------------------------------------------------------
   const api = new Hono<Env>();
+  // CSRF: меняющие запросы — только JSON (форма с чужого сайта так не умеет без CORS) и только со своего сайта
+  api.use(async (c, next) => {
+    if (c.req.method !== 'GET' && c.req.method !== 'HEAD') {
+      if (!(c.req.header('content-type') ?? '').toLowerCase().startsWith('application/json'))
+        throw new HTTPException(415, { message: 'Нужен Content-Type: application/json' });
+      const origin = c.req.header('origin');
+      if (origin && authRequired() && origin !== new URL(baseURL()).origin) throw new HTTPException(403, { message: 'Чужой сайт' });
+    }
+    await next();
+  });
   api.use(guard);
 
   // biome-ignore lint/suspicious/noExplicitAny: тело проверяет сервис

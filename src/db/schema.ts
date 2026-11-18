@@ -13,6 +13,11 @@ export const members = sqliteTable(
     name: text().notNull(),
     /** логин GitHub в нижнем регистре; null — участник не входит в приложение */
     githubLogin: text(),
+    /**
+     * Числовой id аккаунта GitHub — привязывается при первом входе. Логин можно сменить, и его займёт
+     * кто-то другой; id не меняется, поэтому доступ проверяется по нему.
+     */
+    githubId: text(),
     isAdmin: integer({ mode: 'boolean' }).notNull().default(false),
     /** выбывший участник: не входит и не предлагается в новых записях, история остаётся */
     active: integer({ mode: 'boolean' }).notNull().default(true),
@@ -20,7 +25,10 @@ export const members = sqliteTable(
     createdAt: text().notNull().default(now),
     updatedAt: text(),
   },
-  (t) => [uniqueIndex('members_github_login').on(t.githubLogin).where(sql`${t.githubLogin} IS NOT NULL`)],
+  (t) => [
+    uniqueIndex('members_github_login').on(t.githubLogin).where(sql`${t.githubLogin} IS NOT NULL`),
+    uniqueIndex('members_github_id').on(t.githubId).where(sql`${t.githubId} IS NOT NULL`),
+  ],
 );
 
 /**

@@ -1,23 +1,26 @@
 // Участники (совладельцы) и доступ: кто входит, кто админ.
 import { randomUUID } from 'node:crypto';
-import { and, asc, count, eq, sql } from 'drizzle-orm';
+import { and, asc, count, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { isEnvAdmin } from '../auth-options.ts';
-import { user } from '../db/auth-schema.ts';
+import { account, user } from '../db/auth-schema.ts';
 import type { Db } from '../db/index.ts';
 import { type Member, members, trips } from '../db/schema.ts';
+import { demoMode } from '../env.ts';
 import { badRequest, conflict, forbidden, notFound } from './errors.ts';
 
 /** Кто делает запрос. Локальная установка без входа — полный доступ (сервер слушает только 127.0.0.1). */
 export interface Viewer {
   login: string | null;
+  /** пользователь Better Auth (null — локальная установка или демо без входа) */
+  userId: string | null;
   memberId: string | null;
   isAdmin: boolean;
   /** админ из ADMIN_GITHUB_USERS: админство в приложении у него не снять */
   envAdmin: boolean;
 }
 
-export const LOCAL_VIEWER: Viewer = { login: null, memberId: null, isAdmin: true, envAdmin: false };
+export const LOCAL_VIEWER: Viewer = { login: null, userId: null, memberId: null, isAdmin: true, envAdmin: false };
 
 const norm = (login: string) => login.trim().toLowerCase();
 
@@ -43,36 +46,66 @@ export const parse = <T extends z.ZodType>(schema: T, data: unknown): z.output<T
 };
 
 const byLogin = (db: Db, login: string) => db.select().from(members).where(eq(members.githubLogin, norm(login))).get();
+const byGithubId = (db: Db, githubId: string) => db.select().from(members).where(eq(members.githubId, githubId)).get();
 
-/** Пустить ли через GitHub: активный участник с этим логином (главных админов пускает auth-options). */
-export async function canSignIn(db: Db, login: string) {
+/**
+ * Кого пускать через GitHub — проверяется при каждом входе. Участник ищется по неизменяемому id аккаунта
+ * GitHub; при первом входе id привязывается к участнику с этим логином. Если логин уже привязан к другому
+ * id, его после переименования занял другой человек — не пускаем. Главного админа (ADMIN_GITHUB_USERS)
+ * при первом входе заводим участником с привязкой.
+ */
+export async function admitGithubUser(db: Db, login: string, githubId: string): Promise<boolean> {
+  const envAdmin = isEnvAdmin(login);
+  const known = await byGithubId(db, githubId);
+  if (known) {
+    // участник сменил логин на GitHub — переносим, если новый логин ни у кого не занят
+    if (known.githubLogin !== norm(login) && !(await byLogin(db, login)))
+      await db
+        .update(members)
+        .set({ githubLogin: norm(login), updatedAt: new Date().toISOString() })
+        .where(eq(members.id, known.id));
+    return known.active || isEnvAdmin(known.githubLogin);
+  }
   const m = await byLogin(db, login);
-  return !!m?.active;
+  if (m) {
+    if (m.githubId) return false;
+    if (!m.active && !envAdmin) return false;
+    await db.update(members).set({ githubId }).where(and(eq(members.id, m.id), isNull(members.githubId)));
+    return true;
+  }
+  if (!envAdmin) return false;
+  await db
+    .insert(members)
+    .values({ id: randomUUID(), name: login, githubLogin: norm(login), githubId, isAdmin: true, sort: await nextSort(db) })
+    .onConflictDoNothing();
+  return true;
 }
 
 /**
- * Права по логину из сессии. Главный админ без карточки участника получает её при первом входе,
- * чтобы его поездки было на кого записывать. null — доступа нет (логин убрали или участник выбыл).
+ * Права по пользователю Better Auth (сессия браузера или токен MCP): участник — по id аккаунта GitHub.
+ * null — доступа нет (участника убрали, он выбыл, или логин занял чужой аккаунт).
  */
-export async function resolveViewer(db: Db, login: string): Promise<Viewer | null> {
-  const envAdmin = isEnvAdmin(login);
-  let m = await byLogin(db, login);
-  if (!m && envAdmin) {
-    const id = randomUUID();
-    await db
-      .insert(members)
-      .values({ id, name: login, githubLogin: norm(login), isAdmin: true, sort: await nextSort(db) })
-      .onConflictDoNothing();
-    m = await byLogin(db, login);
+export async function resolveViewer(db: Db, userId: string): Promise<Viewer | null> {
+  const u = await db.select({ name: user.name }).from(user).where(eq(user.id, userId)).get();
+  const acc = await db
+    .select({ githubId: account.accountId })
+    .from(account)
+    .where(and(eq(account.userId, userId), eq(account.providerId, 'github')))
+    .get();
+  if (!u || !acc) return null;
+  let m = await byGithubId(db, acc.githubId);
+  if (!m) {
+    // вход был до привязки по id: привязываем к участнику с этим логином, если он ещё ни к кому не привязан
+    const byName = await byLogin(db, u.name);
+    if (byName && !byName.githubId) {
+      await db.update(members).set({ githubId: acc.githubId }).where(and(eq(members.id, byName.id), isNull(members.githubId)));
+      m = await byGithubId(db, acc.githubId);
+    } else if (!byName && (await admitGithubUser(db, u.name, acc.githubId))) m = await byGithubId(db, acc.githubId);
   }
-  if (envAdmin) return { login, memberId: m?.id ?? null, isAdmin: true, envAdmin: true };
-  if (!m?.active) return null;
-  return { login, memberId: m.id, isAdmin: m.isAdmin, envAdmin: false };
-}
-
-/** Логин GitHub по id пользователя Better Auth (из токена MCP). */
-export async function loginByUserId(db: Db, userId: string) {
-  return (await db.select({ name: user.name }).from(user).where(eq(user.id, userId)).get())?.name ?? null;
+  if (!m) return null;
+  const envAdmin = isEnvAdmin(m.githubLogin);
+  if (!m.active && !envAdmin) return null;
+  return { login: m.githubLogin, userId, memberId: m.id, isAdmin: envAdmin || m.isAdmin, envAdmin };
 }
 
 async function nextSort(db: Db) {
@@ -106,6 +139,8 @@ async function assertLoginFree(db: Db, login: string | null | undefined, exceptI
 export async function createMember(db: Db, v: Viewer, input: unknown) {
   requireAdmin(v);
   const b = parse(memberInput, input);
+  if (demoMode() && ((await db.select({ n: count() }).from(members).get())?.n ?? 0) >= 40)
+    throw conflict('В демо уже 40 участников — это предел превью');
   await assertLoginFree(db, b.githubLogin);
   const id = randomUUID();
   await db.insert(members).values({
@@ -132,7 +167,11 @@ export async function updateMember(db: Db, v: Viewer, input: unknown) {
   if (b.githubLogin !== undefined) await assertLoginFree(db, b.githubLogin, m.id);
   const patch: Partial<Member> = { updatedAt: new Date().toISOString() };
   if (b.name !== undefined) patch.name = b.name;
-  if (b.githubLogin !== undefined) patch.githubLogin = b.githubLogin ?? null;
+  if (b.githubLogin !== undefined && (b.githubLogin ?? null) !== m.githubLogin) {
+    // новый логин — возможно, другой человек: привязка к аккаунту GitHub сделается при его первом входе
+    patch.githubLogin = b.githubLogin ?? null;
+    patch.githubId = null;
+  }
   if (b.isAdmin !== undefined) patch.isAdmin = b.isAdmin;
   if (b.active !== undefined) patch.active = b.active;
   await db.update(members).set(patch).where(eq(members.id, m.id));

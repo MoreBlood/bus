@@ -1,15 +1,18 @@
 // Бортжурнал: поездки за год, итоги, разрывы одометра; добавление и правка записей.
 import { randomUUID } from 'node:crypto';
-import { asc, desc, eq } from 'drizzle-orm';
+import { asc, count, desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Db } from '../db/index.ts';
 import { members, type Trip, trips } from '../db/schema.ts';
-import { badRequest, notFound } from './errors.ts';
+import { demoMode } from '../env.ts';
+import { badRequest, conflict, notFound } from './errors.ts';
 import { DATE, type JournalSummary, lastOdometer, type OdometerIssue, odometerIssues, summarize } from './journal.ts';
 import { parse, type Viewer } from './members.ts';
 
 const MAX_TRIP_KM = 10_000;
 const MAX_TRIP_DAYS = 90;
+/** превью PR открыто всем — не даём забить превью-базу мусором */
+export const DEMO_MAX_TRIPS = 500;
 
 const isoDate = z
   .string()
@@ -99,6 +102,8 @@ async function assertMember(db: Db, memberId: string | null, forNew: boolean) {
 
 export async function createTrip(db: Db, v: Viewer, input: unknown) {
   const t = parse(tripInput, input);
+  if (demoMode() && ((await db.select({ n: count() }).from(trips).get())?.n ?? 0) >= DEMO_MAX_TRIPS)
+    throw conflict(`В демо уже ${DEMO_MAX_TRIPS} поездок — это предел превью`);
   await assertMember(db, t.memberId, true);
   const id = randomUUID();
   await db.insert(trips).values({ id, ...t, createdBy: v.login });

@@ -43,8 +43,8 @@ export const authSecret = () =>
   process.env.BETTER_AUTH_SECRET ||
   createHash('sha256').update(`bus-auth:${process.env.GITHUB_CLIENT_SECRET ?? 'local'}`).digest('hex');
 
-/** Кого пускать: проверяет сервер (участник с этим логином или главный админ). */
-export type CanSignIn = (login: string) => Promise<boolean>;
+/** Кого пускать: проверяет сервер по логину и неизменяемому id аккаунта GitHub. */
+export type CanSignIn = (login: string, githubId: string) => Promise<boolean>;
 
 /** Конфиг Better Auth — общий для сервера и генератора схемы (scripts/gen-auth-schema.ts). */
 export const authOptions = (database?: BetterAuthOptions['database'], canSignIn?: CanSignIn) =>
@@ -58,7 +58,7 @@ export const authOptions = (database?: BetterAuthOptions['database'], canSignIn?
         clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
         // пускаем только участников буса; логин GitHub храним как имя пользователя
         mapProfileToUser: async (profile) => {
-          const ok = isEnvAdmin(profile.login) || (canSignIn ? await canSignIn(profile.login) : false);
+          const ok = canSignIn ? await canSignIn(profile.login, String(profile.id)) : false;
           if (!ok)
             throw new APIError('FORBIDDEN', {
               message: `${profile.login} нет в списке участников. Попросите админа добавить ваш GitHub-логин.`,

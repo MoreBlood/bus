@@ -107,6 +107,38 @@ describe('HTTP API', () => {
   });
 });
 
+describe('защита', () => {
+  it('меняющий запрос не-JSON (форма с чужого сайта) отклоняется', async () => {
+    const res = await app.request('/api/trips', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ date: '2026-11-22', memberId: null, km: 1 }),
+    });
+    assert.equal(res.status, 415);
+  });
+
+  it('продакшен отвечает только на своём домене', async () => {
+    process.env.VERCEL_ENV = 'production';
+    process.env.BETTER_AUTH_URL = 'https://bus.example';
+    try {
+      const prod = createApp({ service: createService(drizzle({ client, ...dbConfig })), auth: null });
+      const old = await prod.request('https://bus-abc123.vercel.app/api/setup', { headers: { host: 'bus-abc123.vercel.app' } });
+      assert.equal(old.status, 308);
+      assert.equal(old.headers.get('location'), 'https://bus.example/api/setup');
+      const write = await prod.request('https://bus-abc123.vercel.app/api/trips', {
+        ...json({}),
+        headers: { host: 'bus-abc123.vercel.app', 'Content-Type': 'application/json' },
+      });
+      assert.equal(write.status, 421);
+      const ok = await prod.request('https://bus.example/api/setup', { headers: { host: 'bus.example' } });
+      assert.equal(ok.status, 200);
+    } finally {
+      delete process.env.VERCEL_ENV;
+      delete process.env.BETTER_AUTH_URL;
+    }
+  });
+});
+
 describe('MCP', () => {
   const mcp = (id: number, method: string, params: unknown = {}) =>
     app.request('/mcp', {
