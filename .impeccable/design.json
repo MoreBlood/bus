@@ -1,0 +1,458 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-18T11:44:16+00:00",
+  "title": "Design System: Бус",
+  "extensions": {
+    "colorMeta": {
+      "sign-yellow": {
+        "role": "primary",
+        "displayName": "Знаковый жёлтый",
+        "canonical": "#ffcc00",
+        "tonalRamp": [
+          "#3d2f00",
+          "#6b5300",
+          "#9a7800",
+          "#c99d00",
+          "#f0bf00",
+          "#ffcc00",
+          "#ffe27a",
+          "#fff3c4"
+        ]
+      },
+      "sign-yellow-press": {
+        "role": "primary",
+        "displayName": "Жёлтый нажатия",
+        "canonical": "#f0bf00",
+        "tonalRamp": [
+          "#3d2f00",
+          "#6b5300",
+          "#9a7800",
+          "#c99d00",
+          "#f0bf00",
+          "#ffcc00",
+          "#ffe27a",
+          "#fff3c4"
+        ]
+      },
+      "sign-yellow-wash": {
+        "role": "primary",
+        "displayName": "Жёлтая подсветка",
+        "canonical": "#fff3c4",
+        "tonalRamp": [
+          "#3d2f00",
+          "#6b5300",
+          "#9a7800",
+          "#c99d00",
+          "#f0bf00",
+          "#ffcc00",
+          "#ffe27a",
+          "#fff3c4"
+        ]
+      },
+      "sign-black": {
+        "role": "secondary",
+        "displayName": "Знаковый чёрный",
+        "canonical": "#0b0b0b",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#1a1a1a",
+          "#2b2b2b",
+          "#3d3d3d",
+          "#5c5c5c",
+          "#8a8a8a",
+          "#c4c4c4",
+          "#e6e6e6"
+        ]
+      },
+      "sign-black-press": {
+        "role": "secondary",
+        "displayName": "Чёрный нажатия",
+        "canonical": "#1a1a1a",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#1a1a1a",
+          "#2b2b2b",
+          "#3d3d3d",
+          "#5c5c5c",
+          "#8a8a8a",
+          "#c4c4c4",
+          "#e6e6e6"
+        ]
+      },
+      "band-ink": {
+        "role": "secondary",
+        "displayName": "Оливковый текст на жёлтом",
+        "canonical": "#3b3000",
+        "tonalRamp": [
+          "#3d2f00",
+          "#6b5300",
+          "#9a7800",
+          "#c99d00",
+          "#f0bf00",
+          "#ffcc00",
+          "#ffe27a",
+          "#fff3c4"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Бумага",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#1a1a1a",
+          "#2b2b2b",
+          "#3d3d3d",
+          "#5c5c5c",
+          "#8a8a8a",
+          "#c4c4c4",
+          "#e6e6e6"
+        ]
+      },
+      "surface-2": {
+        "role": "neutral",
+        "displayName": "Холодный серый",
+        "canonical": "#e6e6e6",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#1a1a1a",
+          "#2b2b2b",
+          "#3d3d3d",
+          "#5c5c5c",
+          "#8a8a8a",
+          "#c4c4c4",
+          "#e6e6e6"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Линейка",
+        "canonical": "#e0e0e0",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#1a1a1a",
+          "#2b2b2b",
+          "#3d3d3d",
+          "#5c5c5c",
+          "#8a8a8a",
+          "#c4c4c4",
+          "#e6e6e6"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Текст",
+        "canonical": "#0b0b0b",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#1a1a1a",
+          "#2b2b2b",
+          "#3d3d3d",
+          "#5c5c5c",
+          "#8a8a8a",
+          "#c4c4c4",
+          "#e6e6e6"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Текст вторичный",
+        "canonical": "#3d3d3d",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#1a1a1a",
+          "#2b2b2b",
+          "#3d3d3d",
+          "#5c5c5c",
+          "#8a8a8a",
+          "#c4c4c4",
+          "#e6e6e6"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Текст третичный",
+        "canonical": "#5c5c5c",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#1a1a1a",
+          "#2b2b2b",
+          "#3d3d3d",
+          "#5c5c5c",
+          "#8a8a8a",
+          "#c4c4c4",
+          "#e6e6e6"
+        ]
+      },
+      "danger": {
+        "role": "error",
+        "displayName": "Ошибка",
+        "canonical": "#b42318",
+        "tonalRamp": [
+          "#3a0a05",
+          "#5c1009",
+          "#8a1a11",
+          "#b42318",
+          "#d4483c",
+          "#e88a82",
+          "#f5c5c0",
+          "#fdecea"
+        ]
+      },
+      "danger-wash": {
+        "role": "error",
+        "displayName": "Фон ошибки",
+        "canonical": "#fdecea",
+        "tonalRamp": [
+          "#3a0a05",
+          "#5c1009",
+          "#8a1a11",
+          "#b42318",
+          "#d4483c",
+          "#e88a82",
+          "#f5c5c0",
+          "#fdecea"
+        ]
+      },
+      "danger-ink": {
+        "role": "error",
+        "displayName": "Текст ошибки",
+        "canonical": "#5c1009",
+        "tonalRamp": [
+          "#3a0a05",
+          "#5c1009",
+          "#8a1a11",
+          "#b42318",
+          "#d4483c",
+          "#e88a82",
+          "#f5c5c0",
+          "#fdecea"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Одометр",
+        "purpose": "Показание одометра в полосе; одно на экран."
+      },
+      "headline": {
+        "displayName": "Заголовок страницы",
+        "purpose": "Страница ассистента и служебные страницы."
+      },
+      "readout": {
+        "displayName": "Живой пробег",
+        "purpose": "Пробег, считаемый вживую в форме поездки."
+      },
+      "figure": {
+        "displayName": "Цифра строки",
+        "purpose": "Км справа в строке ленты (28px), итог года (32px)."
+      },
+      "title": {
+        "displayName": "Заголовок раздела",
+        "purpose": "Разделы, текст кнопки-указателя."
+      },
+      "label": {
+        "displayName": "Подпись поля",
+        "purpose": "Подписи полей формы, имена в строках."
+      },
+      "body": {
+        "displayName": "Текст",
+        "purpose": "Объяснения и шаги, до 62ch."
+      },
+      "meta": {
+        "displayName": "Мета",
+        "purpose": "Дата · кто · одометр под строкой, подсказки."
+      },
+      "tag": {
+        "displayName": "Метка",
+        "purpose": "«админ», «вы», «демо», «локально»."
+      }
+    },
+    "shadows": [
+      {
+        "name": "field-frame",
+        "value": "inset 0 0 0 2px #0b0b0b",
+        "purpose": "Рамка полей Radix в покое (не тень)."
+      },
+      {
+        "name": "field-frame-focus",
+        "value": "inset 0 0 0 4px #0b0b0b",
+        "purpose": "Рамка поля в фокусе."
+      },
+      {
+        "name": "focus-ring",
+        "value": "outline: 3px solid #0b0b0b; outline-offset: 2px",
+        "purpose": "Глобальное кольцо фокуса."
+      },
+      {
+        "name": "band-rule",
+        "value": "border-bottom: 4px solid #0b0b0b",
+        "purpose": "Кромка жёлтой полосы и жёлтой кнопки; линия сжатой шапки."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Все переходы состояния."
+      },
+      {
+        "name": "state",
+        "value": "120–160ms",
+        "purpose": "Наведение, выбор, расширение квадрата стрелки, появление одометра в сжатой шапке."
+      },
+      {
+        "name": "fresh-row",
+        "value": "1400ms linear",
+        "purpose": "Подсветка только что записанной поездки sign-yellow-wash."
+      },
+      {
+        "name": "loading-pulse",
+        "value": "900ms ease-in-out alternate",
+        "purpose": "Пульс квадрата стрелки при сохранении."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "phone-narrow",
+        "value": "max-width: 559px"
+      },
+      {
+        "name": "desktop",
+        "value": "min-width: 768px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Кнопка-указатель",
+      "kind": "button",
+      "refersTo": "sign-button",
+      "description": "Главное действие экрана: жёлтая панель, стрелка в чёрном квадрате у правого края.",
+      "html": "<button class=\"ds-sign\"><span class=\"ds-sign__label\">Записать поездку</span><span class=\"ds-sign__arrow\"><svg width=\"26\" height=\"26\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"square\" stroke-linejoin=\"miter\" aria-hidden=\"true\"><path d=\"M3.5 12h16M13 5.5l6.5 6.5-6.5 6.5\"/></svg></span></button>",
+      "css": ":host{--sign-yellow:#ffcc00;--sign-yellow-press:#f0bf00;--sign-yellow-wash:#fff3c4;--sign-black:#0b0b0b;--ink:#0b0b0b;--ink-2:#3d3d3d;--ink-3:#5c5c5c;--line:#e0e0e0;--surface-2:#e6e6e6;--font:'Onest Variable','Onest',system-ui,sans-serif} .ds-sign{display:flex;align-items:stretch;justify-content:space-between;width:100%;min-height:64px;padding:0;border:0;border-bottom:4px solid var(--sign-black);border-radius:0;background:var(--sign-yellow);color:var(--sign-black);font:700 20px/1 var(--font);text-align:left;cursor:pointer;transition:background-color 150ms cubic-bezier(0.16,1,0.3,1)} .ds-sign__label{display:flex;align-items:center;padding:0 20px} .ds-sign__arrow{display:grid;place-items:center;width:64px;flex:none;background:var(--sign-black);color:var(--sign-yellow);transition:width 150ms cubic-bezier(0.16,1,0.3,1)} .ds-sign:hover .ds-sign__arrow{width:72px} .ds-sign:active{background:var(--sign-yellow-press)} .ds-sign:focus-visible{outline:3px solid var(--sign-black);outline-offset:2px}"
+    },
+    {
+      "name": "Кнопка-указатель на полосе",
+      "kind": "button",
+      "refersTo": "sign-button-black",
+      "description": "Та же кнопка на жёлтой полосе (десктоп): чёрная, стрелка за жёлтой линией.",
+      "html": "<div class=\"ds-band-demo\"><button class=\"ds-sign-k\"><span class=\"ds-sign__label\">Записать поездку</span><span class=\"ds-sign__arrow\"><svg width=\"26\" height=\"26\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"square\" stroke-linejoin=\"miter\" aria-hidden=\"true\"><path d=\"M3.5 12h16M13 5.5l6.5 6.5-6.5 6.5\"/></svg></span></button></div>",
+      "css": ":host{--sign-yellow:#ffcc00;--sign-yellow-press:#f0bf00;--sign-yellow-wash:#fff3c4;--sign-black:#0b0b0b;--ink:#0b0b0b;--ink-2:#3d3d3d;--ink-3:#5c5c5c;--line:#e0e0e0;--surface-2:#e6e6e6;--font:'Onest Variable','Onest',system-ui,sans-serif} .ds-band-demo{background:var(--sign-yellow);padding:16px} .ds-sign-k{display:flex;align-items:stretch;justify-content:space-between;width:100%;min-height:64px;padding:0;border:0;border-radius:0;background:var(--sign-black);color:#fff;font:700 20px/1 var(--font);text-align:left;cursor:pointer} .ds-sign__label{display:flex;align-items:center;padding:0 20px} .ds-sign__arrow{display:grid;place-items:center;width:64px;background:var(--sign-black);color:var(--sign-yellow);border-left:2px solid var(--sign-yellow);transition:width 150ms cubic-bezier(0.16,1,0.3,1)} .ds-sign-k:hover .ds-sign__arrow{width:72px} .ds-sign-k:active{background:#1a1a1a} .ds-sign-k:focus-visible{outline:3px solid var(--sign-black);outline-offset:2px}"
+    },
+    {
+      "name": "Вторичная кнопка",
+      "kind": "button",
+      "refersTo": "text-button",
+      "description": "Белая кнопка в чёрной раме для второстепенных действий.",
+      "html": "<button class=\"ds-text-btn\">Выдать доступ</button>",
+      "css": ":host{--sign-yellow:#ffcc00;--sign-yellow-press:#f0bf00;--sign-yellow-wash:#fff3c4;--sign-black:#0b0b0b;--ink:#0b0b0b;--ink-2:#3d3d3d;--ink-3:#5c5c5c;--line:#e0e0e0;--surface-2:#e6e6e6;--font:'Onest Variable','Onest',system-ui,sans-serif} .ds-text-btn{min-height:44px;padding:0 14px;border:2px solid var(--sign-black);border-radius:0;background:#fff;font:650 15px var(--font);color:var(--ink);cursor:pointer} .ds-text-btn:hover{background:var(--surface-2)} .ds-text-btn:focus-visible{outline:3px solid var(--sign-black);outline-offset:2px}"
+    },
+    {
+      "name": "Числовое поле",
+      "kind": "input",
+      "refersTo": "num-input",
+      "description": "Показание одометра: рама 2px, крупные табличные цифры, рамка утолщается в фокусе.",
+      "html": "<label class=\"ds-field\"><span>Одометр до</span><input class=\"ds-num\" inputmode=\"numeric\" value=\"181 232\"></label>",
+      "css": ":host{--sign-yellow:#ffcc00;--sign-yellow-press:#f0bf00;--sign-yellow-wash:#fff3c4;--sign-black:#0b0b0b;--ink:#0b0b0b;--ink-2:#3d3d3d;--ink-3:#5c5c5c;--line:#e0e0e0;--surface-2:#e6e6e6;--font:'Onest Variable','Onest',system-ui,sans-serif} .ds-field span{display:block;margin-bottom:6px;font:600 15px var(--font)} .ds-num{width:100%;height:56px;padding:0 14px;border:2px solid var(--sign-black);border-radius:0;background:#fff;font:700 24px/1 var(--font);font-variant-numeric:tabular-nums;color:var(--ink)} .ds-num:hover{background:#fafafa} .ds-num:focus{outline:none;box-shadow:inset 0 0 0 2px var(--sign-black)}"
+    },
+    {
+      "name": "Навигация",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Нижние вкладки телефона: активная — чёрная.",
+      "html": "<nav class=\"ds-tabs\"><a aria-current=\"page\" href=\"#\">Журнал</a><a href=\"#\">Участники</a></nav>",
+      "css": ":host{--sign-yellow:#ffcc00;--sign-yellow-press:#f0bf00;--sign-yellow-wash:#fff3c4;--sign-black:#0b0b0b;--ink:#0b0b0b;--ink-2:#3d3d3d;--ink-3:#5c5c5c;--line:#e0e0e0;--surface-2:#e6e6e6;--font:'Onest Variable','Onest',system-ui,sans-serif} .ds-tabs{display:flex;border-top:2px solid var(--sign-black);background:#fff} .ds-tabs a{flex:1;display:flex;align-items:center;justify-content:center;min-height:56px;font:650 16px var(--font);color:var(--ink-2);text-decoration:none} .ds-tabs a:hover{background:var(--surface-2)} .ds-tabs a[aria-current=page]{background:var(--sign-black);color:#fff} .ds-tabs a:focus-visible{outline:3px solid var(--sign-black);outline-offset:-3px}"
+    },
+    {
+      "name": "Метки",
+      "kind": "chip",
+      "refersTo": "tag",
+      "description": "Прямоугольные метки статуса: чёрная, жёлтая, приглушённая.",
+      "html": "<span class=\"ds-tag\">админ</span> <span class=\"ds-tag ds-tag--y\">вы</span> <span class=\"ds-tag ds-tag--m\">демо</span>",
+      "css": ":host{--sign-yellow:#ffcc00;--sign-yellow-press:#f0bf00;--sign-yellow-wash:#fff3c4;--sign-black:#0b0b0b;--ink:#0b0b0b;--ink-2:#3d3d3d;--ink-3:#5c5c5c;--line:#e0e0e0;--surface-2:#e6e6e6;--font:'Onest Variable','Onest',system-ui,sans-serif} .ds-tag{display:inline-block;padding:1px 6px;font:700 12px/18px var(--font);background:var(--sign-black);color:#fff} .ds-tag--y{background:var(--sign-yellow);color:var(--sign-black)} .ds-tag--m{background:var(--surface-2);color:var(--ink-2)}"
+    },
+    {
+      "name": "Табличка одометра",
+      "kind": "custom",
+      "refersTo": "pictogram",
+      "description": "Полоса-указатель: знак на чёрном квадрате, подпись, монументальное показание, чёрная кромка 4px.",
+      "html": "<section class=\"ds-band\"><div class=\"ds-odo\"><span class=\"ds-pict\"><svg width=\"30\" height=\"30\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"square\" stroke-linejoin=\"miter\" aria-hidden=\"true\"><path d=\"M3.5 17a8.5 8.5 0 1 1 17 0\"/><path d=\"M12 17l4.5-6\"/><path d=\"M6 13.5l1.2.7M12 8.5v1.4M18 13.5l-1.2.7\"/></svg></span><span class=\"ds-odo__label\">Одометр</span><span class=\"ds-odo__value\">181 500<small>км</small></span><span class=\"ds-odo__meta\">по последней записи, 14 ноября</span></div></section>",
+      "css": ":host{--sign-yellow:#ffcc00;--sign-yellow-press:#f0bf00;--sign-yellow-wash:#fff3c4;--sign-black:#0b0b0b;--ink:#0b0b0b;--ink-2:#3d3d3d;--ink-3:#5c5c5c;--line:#e0e0e0;--surface-2:#e6e6e6;--font:'Onest Variable','Onest',system-ui,sans-serif} .ds-band{background:var(--sign-yellow);border-bottom:4px solid var(--sign-black);padding:12px 16px 20px;font-family:var(--font);color:var(--sign-black)} .ds-odo{display:grid;grid-template-columns:auto 1fr;column-gap:14px;align-items:center} .ds-pict{display:inline-grid;place-items:center;width:48px;height:48px;background:var(--sign-black);color:#fff} .ds-odo__label{font-size:20px;font-weight:600} .ds-odo__value{grid-column:1/-1;margin-top:6px;font-size:64px;font-weight:800;line-height:.95;letter-spacing:-0.035em;font-variant-numeric:tabular-nums;white-space:nowrap} .ds-odo__value small{margin-left:10px;font-size:.4em;font-weight:650;letter-spacing:0} .ds-odo__meta{grid-column:1/-1;margin-top:8px;font-size:15px;font-weight:500;color:#3b3000}"
+    },
+    {
+      "name": "Лента: поездка и разрыв",
+      "kind": "custom",
+      "refersTo": "issue-row",
+      "description": "Строка поездки с цифрой справа и жёлтая строка-предупреждение о разрыве одометра.",
+      "html": "<ul class=\"ds-feed\"><li class=\"ds-trip\"><span class=\"ds-pict\"><svg width=\"25\" height=\"25\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"square\" stroke-linejoin=\"miter\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"7\" r=\"3\"/><path d=\"M5.5 20.5c.6-4.2 3.1-6.5 6.5-6.5s5.9 2.3 6.5 6.5\"/></svg></span><span><b class=\"ds-trip__t\">Варшава — Казимеж</b><span class=\"ds-trip__m\">14 нояб · Участник · 181 232 → 181 500</span></span><span class=\"ds-trip__km\">268<small>км</small></span></li><li class=\"ds-issue\"><span class=\"ds-pict ds-pict--s\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"square\" aria-hidden=\"true\"><path d=\"M12 5v9\"/><path d=\"M12 18.2v.3\"/></svg></span><span><b>37 км никто не записал</b> между 9 и 14 нояб</span></li></ul>",
+      "css": ":host{--sign-yellow:#ffcc00;--sign-yellow-press:#f0bf00;--sign-yellow-wash:#fff3c4;--sign-black:#0b0b0b;--ink:#0b0b0b;--ink-2:#3d3d3d;--ink-3:#5c5c5c;--line:#e0e0e0;--surface-2:#e6e6e6;--font:'Onest Variable','Onest',system-ui,sans-serif} .ds-feed{margin:0;padding:0;list-style:none;border-top:2px solid var(--sign-black);font-family:var(--font);color:var(--ink)} .ds-pict{display:inline-grid;place-items:center;width:40px;height:40px;background:var(--sign-black);color:#fff} .ds-pict--s{width:32px;height:32px} .ds-trip{display:grid;grid-template-columns:auto 1fr auto;align-items:center;column-gap:12px;min-height:72px;padding:12px 4px 12px 0;border-bottom:1px solid var(--line);transition:background-color 150ms cubic-bezier(0.16,1,0.3,1)} .ds-trip:hover{background:var(--surface-2)} .ds-trip__t{display:block;font-size:17px;font-weight:650;line-height:1.25} .ds-trip__m{display:block;margin-top:4px;font-size:14px;color:var(--ink-3)} .ds-trip__km{font-size:28px;font-weight:800;letter-spacing:-0.02em;font-variant-numeric:tabular-nums} .ds-trip__km small{margin-left:3px;font-size:14px;font-weight:650;letter-spacing:0} .ds-issue{display:grid;grid-template-columns:auto 1fr;align-items:center;column-gap:12px;padding:12px 12px 12px 0;background:var(--sign-yellow-wash);border-bottom:1px solid var(--line);font-size:15px;line-height:1.35}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Терминальный указатель",
+    "overview": "Бортжурнал устроен как система указателей в аэропорту: жёлтая полоса говорит, где ты и сколько на одометре; каждая строка ниже несёт одно сообщение; главная цифра стоит монументально, остальное ей подчинено. Интерфейс читают на улице, у буса, при дневном свете, одной рукой, поэтому контраст предельный (чёрное на жёлтом, чёрное на белом), цели касания крупные, а декоративного слоя нет вовсе.\n\nПлотность — рабочая, а не витринная: лента поездок строками на линейках, итоги одной строкой-сообщением, личный пробег списком. Вместо сетки KPI-карточек — линейки и одна крупная цифра в каждой строке. Глубины нет: слои различаются цветом поля (жёлтая полоса, белый рабочий фон, холодный серый второго слоя) и чёрными рамами, а не тенями.\n\nПодпись системы — знак на чёрном квадрате и стрелка, прибитая к правому краю кнопки. Пиктограммы нарисованы вручную одним штрихом на сетке 24×24, с прямыми концами линий; они так же принадлежат миру, как жёлтый цвет.",
+    "keyCharacteristics": [
+      "Жёлтый знаковый цвет — только на полосе-указателе, главном действии и выделениях; рабочее поле белое.",
+      "Одна монументальная цифра на экран (одометр), табличные цифры везде.",
+      "Прямые углы без исключений, никаких теней; разделение — линейками и чёрными рамами.",
+      "Пиктограммы: белый знак на чёрном квадрате, штрих 2.5, квадратные концы.",
+      "Одно сообщение на строку; sentence case, без капса и надстрочных подписей.",
+      "Движение 120–200 мс, только смена состояния."
+    ],
+    "rules": [
+      {
+        "name": "The Signal Yellow Rule",
+        "body": "Жёлтое поле — только полоса-указатель, главное действие экрана и жёлтые метки («вы»). Остальной интерфейс белый; жёлтый на большой площади ниже полосы допустим лишь в виде подсветки (sign-yellow-wash) для предупреждения.",
+        "section": "colors"
+      },
+      {
+        "name": "The Black Means Selected Rule",
+        "body": "Выбранное состояние всегда чёрное с белым текстом: активная вкладка, выбранный участник, сегмент переключателя, включённый переключатель. Жёлтым выбранное не обозначается.",
+        "section": "colors"
+      },
+      {
+        "name": "The Invert-On-Yellow Rule",
+        "body": "На белом фоне главная кнопка жёлтая; на жёлтой полосе (десктоп) та же кнопка становится чёрной, со стрелкой в жёлтой рамке. Жёлтое на жёлтом не ставится.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Figures Rule",
+        "body": "Все цифры — табличные (`tabular-nums` на корне темы и в полях ввода): км в ленте и одометр должны стоять столбцом.",
+        "section": "typography"
+      },
+      {
+        "name": "The Sentence Case Rule",
+        "body": "Заголовки, кнопки, вкладки и метки — в обычном регистре. Капс, разрядка и надзаголовки над заголовками не используются.",
+        "section": "typography"
+      },
+      {
+        "name": "The Thumb Rule",
+        "body": "Главное действие экрана на телефоне всегда у нижнего края, в досягаемости большого пальца; цели касания не меньше 44px, основные — 48px и выше.",
+        "section": "layout"
+      },
+      {
+        "name": "The Frame, Not Shadow Rule",
+        "body": "Всё, что лежит выше листа, отделено чёрной линией (4px для полосы, 2px для дока и формы). `box-shadow` используется только как внутренняя рамка полей Radix, никогда как тень.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** держать жёлтое поле на полосе-указателе и одном главном действии; предупреждения внутри белого поля — подсветкой sign-yellow-wash.",
+      "**Do** обозначать выбранное чёрным с белым текстом — вкладки, варианты, сегменты, переключатели.",
+      "**Do** ставить каждый знак в чёрный квадрат и рисовать новые пиктограммы тем же штрихом 2.5 на сетке 24×24 с квадратными концами.",
+      "**Do** давать одну крупную цифру на строку (км справа, 26–32px/800) и табличные цифры везде.",
+      "**Do** отделять слои чёрной линией: 4px под полосой, 2px над лентой, списками, доком и липкой кнопкой формы.",
+      "**Do** прибивать главное действие у большого пальца на телефоне и переносить его в полосу (чёрным) на десктопе.",
+      "**Do** ограничивать движение 120–200 мс на смену состояния и уважать `prefers-reduced-motion`."
+    ],
+    "donts": [
+      "**Don't** скруглять углы и не добавлять тени — ни у кнопок, ни у карточек, ни у всплывающих слоёв.",
+      "**Don't** собирать экран из серой сетки KPI-карточек: итоги — строками на линейках.",
+      "**Don't** ставить жёлтую кнопку на жёлтую полосу и не обозначать выбранное жёлтым.",
+      "**Don't** писать капсом, с разрядкой или с надзаголовком над заголовком раздела.",
+      "**Don't** использовать сторонние наборы иконок или символы шрифта вместо пиктограмм.",
+      "**Don't** опускать вторичный текст светлее ink-3 (5c5c5c) — экран читают на солнце."
+    ]
+  }
+}

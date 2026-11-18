@@ -543,7 +543,7 @@ a {
   display: block;
   margin-top: 2px;
   font-size: 14px;
-  color: #4a3d00;
+  color: #3b3000;
 }
 
 .empty {
@@ -565,7 +565,7 @@ a {
 
 /* скелетон загрузки */
 .skeleton {
-  background: linear-gradient(90deg, var(--surface-2) 0%, #e8e8e8 50%, var(--surface-2) 100%);
+  background: linear-gradient(90deg, var(--surface-2) 0%, #f4f4f4 50%, var(--surface-2) 100%);
   background-size: 200% 100%;
   animation: shimmer 1.2s linear infinite;
 }
