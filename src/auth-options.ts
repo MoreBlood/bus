@@ -8,9 +8,12 @@ import { mcp } from '@better-auth/mcp';
 import type { BetterAuthOptions } from 'better-auth';
 import { APIError } from 'better-auth/api';
 import { jwt } from 'better-auth/plugins';
+import { demoMode } from './env.ts';
 
-/** Облако (Vercel) или явно включённый вход. Без настроек в облаке сервис закрыт. */
-export const authRequired = () => !!(process.env.VERCEL || process.env.GITHUB_CLIENT_ID);
+export { demoMode };
+
+/** Облако (Vercel) или явно включённый вход. Без настроек в облаке сервис закрыт. Превью PR — демо без входа. */
+export const authRequired = () => !demoMode() && !!(process.env.VERCEL || process.env.GITHUB_CLIENT_ID);
 export const authConfigured = () =>
   !!(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET && process.env.ADMIN_GITHUB_USERS);
 
@@ -27,6 +30,8 @@ export const isEnvAdmin = (login?: string | null) => !!login && envAdmins().incl
 
 export const baseURL = () =>
   process.env.BETTER_AUTH_URL ||
+  // превью PR живёт на своём адресе — MCP и ссылки должны вести туда же
+  (demoMode() && process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : '') ||
   (process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
     : `http://localhost:${process.env.PORT || 5055}`);

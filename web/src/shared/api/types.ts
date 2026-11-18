@@ -77,6 +77,13 @@ export interface Setup {
   mcpUrl: string;
   /** callback для OAuth App на GitHub */
   githubCallbackUrl: string;
+  /** превью PR: демо-данные, вход выключен */
+  demo: boolean;
+  version: string;
+  commit: string | null;
+  /** номер PR для превью */
+  pr: string | null;
+  branch: string | null;
 }
 
 export interface TripInput {

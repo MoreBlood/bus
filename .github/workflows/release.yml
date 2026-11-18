@@ -1,0 +1,42 @@
+# Версии и чейнджлог. После каждого мержа в main release-please обновляет релизный PR
+# («chore(main): release X.Y.Z») — CHANGELOG.md, версия в package.json и src/version.ts.
+# Мерж релизного PR ставит тег vX.Y.Z и публикует релиз на GitHub.
+name: Релиз
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: Подготовка релиза
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # PR, созданный встроенным токеном Actions, сам CI не запускает — запускаем его явно,
+      # чтобы у релизного PR появилась обязательная проверка «Готово к мержу».
+      - name: CI для релизного PR
+        if: steps.release.outputs.pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+        run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"
+
+      - name: Итог
+        if: steps.release.outputs.release_created
+        run: echo "### Вышла версия ${{ steps.release.outputs.tag_name }}" >> "$GITHUB_STEP_SUMMARY"

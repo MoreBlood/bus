@@ -5,7 +5,7 @@ import { authOptions, type CanSignIn } from './auth-options.ts';
 import * as authSchema from './db/auth-schema.ts';
 import type { Db } from './db/index.ts';
 
-export { authConfigured, authRequired, baseURL, envAdmins, isEnvAdmin, mcpResource } from './auth-options.ts';
+export { authConfigured, authRequired, baseURL, demoMode, envAdmins, isEnvAdmin, mcpResource } from './auth-options.ts';
 
 export const createAuth = (db: Db, canSignIn: CanSignIn) =>
   betterAuth(authOptions(drizzleAdapter(db, { provider: 'sqlite', schema: authSchema }), canSignIn));

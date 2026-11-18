@@ -17,6 +17,36 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  title:
+    name: Заголовок PR
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      pull-requests: read
+    steps:
+      # заголовок PR становится коммитом в main и строкой чейнджлога: «feat: …», «fix(журнал): …»
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            perf
+            revert
+            deps
+            docs
+            refactor
+            test
+            ci
+            build
+            style
+            chore
+          requireScope: false
+          subjectPattern: ^\S.*$
+          subjectPatternError: "После «тип:» нужно описание, например «feat: фильтр по участнику»."
+
   server:
     name: Сервер — типы и тесты
     runs-on: ubuntu-latest
@@ -94,28 +124,33 @@ jobs:
   ready:
     name: Готово к мержу
     if: always()
-    needs: [server, web, database, build]
+    needs: [title, server, web, database, build]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - name: Итог
         env:
+          TITLE: ${{ needs.title.result }}
           SERVER: ${{ needs.server.result }}
           WEB: ${{ needs.web.result }}
           DATABASE: ${{ needs.database.result }}
           BUILD: ${{ needs.build.result }}
         run: |
-          mark() { [ "$1" = success ] && echo "✅" || echo "❌ $1"; }
+          mark() { case "$1" in success) echo "✅";; skipped) echo "— не PR";; *) echo "❌ $1";; esac; }
           {
             echo "### Проверки"
             echo
             echo "| Проверка | Результат |"
             echo "|---|---|"
+            echo "| Заголовок PR | $(mark "$TITLE") |"
             echo "| Сервер — типы и тесты | $(mark "$SERVER") |"
             echo "| Фронт — линтер и типы | $(mark "$WEB") |"
             echo "| База — миграции и схема | $(mark "$DATABASE") |"
             echo "| Сборка как на Vercel | $(mark "$BUILD") |"
           } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$TITLE" != success ] && [ "$TITLE" != skipped ]; then
+            echo "::error::Заголовок PR не по формату «тип: описание» — из него собирается чейнджлог."; exit 1
+          fi
           for r in "$SERVER" "$WEB" "$DATABASE" "$BUILD"; do
             if [ "$r" != success ]; then echo "::error::Не все проверки прошли — в main это не попадёт."; exit 1; fi
           done

@@ -2,6 +2,7 @@
 import { createMcpHandler, McpServer, type StandardSchemaWithJSON } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import type { Service, Viewer } from './service/index.ts';
+import { VERSION } from './version.ts';
 
 const INSTRUCTIONS = `Бус — общий бортжурнал буса, которым совместно владеют друзья.
 - Поездка личная (member_id участника) или общая (member_id = null, по общим делам). Каждый отрезок пути записывается один раз.
@@ -38,7 +39,7 @@ const toInput = (a: Partial<Record<keyof typeof tripFields, unknown>>) => {
 };
 
 function buildServer(s: Service, v: Viewer) {
-  const server = new McpServer({ name: 'bus', version: '1.0.0' }, { instructions: INSTRUCTIONS });
+  const server = new McpServer({ name: 'bus', version: VERSION }, { instructions: INSTRUCTIONS });
   const tool = <T extends StandardSchemaWithJSON>(
     name: string,
     description: string,

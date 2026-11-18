@@ -88,6 +88,15 @@ export function AssistantPage() {
                   : 'У вас пока ничего не подключено.'}
               </p>
             )}
+            {status?.demo && (
+              <div className="notice" role="note" style={{ marginTop: 12 }}>
+                <Pictogram name="warning" size={32} />
+                <span>
+                  Это превью PR: ассистент подключится без входа и увидит только демо-журнал.
+                  Настоящий журнал — на bus.akapps.click.
+                </span>
+              </div>
+            )}
             {status?.local && (
               <div className="notice" role="note" style={{ marginTop: 12 }}>
                 <Pictogram name="warning" size={32} />
