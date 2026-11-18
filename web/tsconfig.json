@@ -10,13 +10,13 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "noUnusedLocals": true,
-    "baseUrl": "src",
+    "types": ["vite/client"],
     "paths": {
-      "@app/*": ["app/*"],
-      "@pages/*": ["pages/*"],
-      "@widgets/*": ["widgets/*"],
-      "@features/*": ["features/*"],
-      "@shared/*": ["shared/*"]
+      "@app/*": ["./src/app/*"],
+      "@pages/*": ["./src/pages/*"],
+      "@widgets/*": ["./src/widgets/*"],
+      "@features/*": ["./src/features/*"],
+      "@shared/*": ["./src/shared/*"]
     }
   },
   "include": ["src"]
