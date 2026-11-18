@@ -2,6 +2,13 @@
 
 Что менялось в «Бусе». Записи ведёт release-please по заголовкам PR — руками не правьте.
 
+## [0.2.0](https://github.com/MoreBlood/bus/compare/v0.1.0...v0.2.0) (2026-11-18)
+
+
+### Новое
+
+* превью PR на демо-базе, версии и чейнджлог ([#8](https://github.com/MoreBlood/bus/issues/8)) ([e24c974](https://github.com/MoreBlood/bus/commit/e24c9749c62c74dd6a7d2cb2754968332213d67c))
+
 ## [0.1.0](https://github.com/MoreBlood/bus/releases/tag/v0.1.0) (2026-11-18)
 
 Первая версия на https://bus.akapps.click.
