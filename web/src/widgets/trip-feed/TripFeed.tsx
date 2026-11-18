@@ -1,15 +1,27 @@
 // Лента поездок: строки-сообщения (знак, маршрут, дата · кто · одометр, км крупно)
 // и жёлтые строки разрывов одометра между ними.
 import type { Journal, Member, OdometerIssue, Trip } from '@shared/api/types';
-import { dateRange, days, num, shortDate, tripDays } from '@shared/lib/format';
-import { whoLabel } from '@shared/model/session';
+import { dateRange, days, num, shortDate, tripDays, zl } from '@shared/lib/format';
 import { Pictogram } from '@shared/ui/Pictogram';
 import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
 
+/** «Миша, Аня +2» — кто ехал одной строкой; гости — общим числом. */
+export function ridersLabel(trip: Trip, byId: Map<string, Member>) {
+  if (trip.shared) return 'По делам буса';
+  const names = trip.riders.map((r) => byId.get(r.memberId)?.name ?? 'Участник удалён');
+  const guests = trip.riders.reduce((s, r) => s + r.guests, 0);
+  return `${names.join(', ')}${guests ? ` +${guests}` : ''}`;
+}
+
 function TripRow({ trip, byId, fresh }: { trip: Trip; byId: Map<string, Member>; fresh: boolean }) {
-  const who = whoLabel(trip.memberId, byId);
+  const who = ridersLabel(trip, byId);
   const n = tripDays(trip.date, trip.endDate);
+  const money = trip.shared
+    ? 'из кассы'
+    : trip.cost.heads > 1
+      ? `по ${zl(trip.cost.perHead)}`
+      : zl(trip.cost.total);
   const meta = [
     dateRange(trip.date, trip.endDate),
     trip.note ? who : null,
@@ -17,11 +29,17 @@ function TripRow({ trip, byId, fresh }: { trip: Trip; byId: Map<string, Member>;
     trip.odoStart !== null && trip.odoEnd !== null
       ? `${num(trip.odoStart)} → ${num(trip.odoEnd)}`
       : 'без одометра',
+    money,
   ].filter(Boolean);
+  const heads = trip.cost.heads;
   return (
     <li>
       <Link to={`/trips/${trip.id}`} className={`trip-row${fresh ? ' is-fresh' : ''}`}>
-        <Pictogram name={trip.memberId === null ? 'people' : 'person'} size={40} label={who} />
+        <Pictogram
+          name={trip.shared ? 'wrench' : heads > 1 ? 'people' : 'person'}
+          size={40}
+          label={who}
+        />
         <span className="trip-row__main">
           <span className="trip-row__title">
             {trip.note || who}

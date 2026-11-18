@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { isEnvAdmin } from '../auth-options.ts';
 import { account, user } from '../db/auth-schema.ts';
 import type { Db } from '../db/index.ts';
-import { type Member, members, trips } from '../db/schema.ts';
+import { type Member, members, tripRiders } from '../db/schema.ts';
 import { demoMode } from '../env.ts';
 import { badRequest, conflict, forbidden, notFound } from './errors.ts';
 
@@ -120,7 +120,7 @@ export interface MemberView extends Member {
 }
 
 export async function listMembers(db: Db): Promise<MemberView[]> {
-  const counts = await db.select({ memberId: trips.memberId, n: count() }).from(trips).groupBy(trips.memberId);
+  const counts = await db.select({ memberId: tripRiders.memberId, n: count() }).from(tripRiders).groupBy(tripRiders.memberId);
   const tripsOf = new Map(counts.map((c) => [c.memberId, c.n]));
   const rows = await db.select().from(members).orderBy(asc(members.sort), asc(members.name));
   return rows.map((m) => ({ ...m, envAdmin: isEnvAdmin(m.githubLogin), trips: tripsOf.get(m.id) ?? 0 }));
@@ -182,7 +182,7 @@ export async function deleteMember(db: Db, v: Viewer, id: unknown) {
   requireAdmin(v);
   if (typeof id !== 'string' || !id) throw badRequest('Нужен id');
   if (v.memberId === id) throw badRequest('Удалить себя нельзя');
-  const used = await db.select({ n: count() }).from(trips).where(eq(trips.memberId, id)).get();
+  const used = await db.select({ n: count() }).from(tripRiders).where(eq(tripRiders.memberId, id)).get();
   if (used?.n) throw conflict('У участника есть поездки — отключите его вместо удаления, история сохранится');
   const r = await db.delete(members).where(and(eq(members.id, id))).returning({ id: members.id });
   if (!r.length) throw notFound('Участник не найден');

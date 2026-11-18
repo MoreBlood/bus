@@ -153,6 +153,16 @@ export function createApp({ service, auth }: { service: Service; auth: Auth | nu
   api.post('/trips/update', async (c) => c.json(await service.updateTrip(c.get('viewer'), await body(c))));
   api.post('/trips/delete', async (c) => c.json(await service.deleteTrip(c.get('viewer'), (await body(c)).id)));
 
+  api.get('/money', async (c) => c.json(await service.money(c.req.query('year') || undefined)));
+  api.get('/settings', async (c) => c.json(await service.settings()));
+  api.post('/settings', async (c) => c.json(await service.saveSettings(c.get('viewer'), await body(c))));
+  api.get('/refuels/:id', async (c) => c.json(await service.refuel(c.req.param('id'))));
+  api.post('/refuels', async (c) => c.json(await service.createRefuel(c.get('viewer'), await body(c))));
+  api.post('/refuels/update', async (c) => c.json(await service.updateRefuel(c.get('viewer'), await body(c))));
+  api.post('/refuels/delete', async (c) => c.json(await service.deleteRefuel(c.get('viewer'), (await body(c)).id)));
+  api.post('/transfers', async (c) => c.json(await service.createTransfer(c.get('viewer'), await body(c))));
+  api.post('/transfers/delete', async (c) => c.json(await service.deleteTransfer(c.get('viewer'), (await body(c)).id)));
+
   api.get('/export', async (c) => {
     c.header('Content-Disposition', `attachment; filename="bus-export-${new Date().toISOString().slice(0, 10)}.json"`);
     return c.json(await service.exportData());

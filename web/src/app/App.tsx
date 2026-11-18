@@ -5,6 +5,8 @@ import { ConsentPage } from '@pages/auth/ConsentPage';
 import { SignInPage } from '@pages/auth/SignInPage';
 import { JournalPage } from '@pages/journal/JournalPage';
 import { MembersPage } from '@pages/members/MembersPage';
+import { MoneyPage } from '@pages/money/MoneyPage';
+import { RefuelPage } from '@pages/refuel/RefuelPage';
 import { SetupPage } from '@pages/setup/SetupPage';
 import { TripPage } from '@pages/trip/TripPage';
 import { Theme } from '@radix-ui/themes';
@@ -26,6 +28,13 @@ function Dock() {
           <SignLink to="/trips/new">Записать поездку</SignLink>
         </div>
       )}
+      {pathname === '/money' && (
+        <div className="dock__cta">
+          <SignLink to="/refuels/new" icon="pump">
+            Записать заправку
+          </SignLink>
+        </div>
+      )}
       <nav className="tabbar" aria-label="Разделы">
         {NAV.map(({ to, label, icon }) => (
           <NavLink key={to} to={to} end={to === '/'}>
@@ -41,7 +50,8 @@ function Dock() {
 function Shell() {
   const { pathname } = useLocation();
   const { error } = useSession();
-  const form = pathname.startsWith('/trips/');
+  const form = pathname.startsWith('/trips/') || pathname.startsWith('/refuels/');
+  const cta = pathname === '/' || pathname === '/money';
   if (error)
     return (
       <div className="gate">
@@ -57,11 +67,14 @@ function Shell() {
     );
   return (
     <>
-      <main className={`app-main${pathname === '/' ? ' has-cta' : ''}`}>
+      <main className={`app-main${cta ? ' has-cta' : ''}`}>
         <Routes>
           <Route path="/" element={<JournalPage />} />
           <Route path="/trips/new" element={<TripPage />} />
           <Route path="/trips/:id" element={<TripPage />} />
+          <Route path="/money" element={<MoneyPage />} />
+          <Route path="/refuels/new" element={<RefuelPage />} />
+          <Route path="/refuels/:id" element={<RefuelPage />} />
           <Route path="/members" element={<MembersPage />} />
           <Route path="/assistant" element={<AssistantPage />} />
           <Route path="*" element={<JournalPage />} />

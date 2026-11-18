@@ -17,8 +17,8 @@ export function Topbar({
   /** табличка одометра ушла за край — показываем её значение в полосе */
   compact?: boolean;
   compactValue?: string;
-  /** кнопка «назад» вместо логотипа */
-  back?: string;
+  /** кнопка «назад» вместо логотипа: адрес или обработчик (шаг мастера назад) */
+  back?: string | (() => void);
   children?: ReactNode;
 }) {
   const setup = useSetup();
@@ -26,7 +26,17 @@ export function Topbar({
   return (
     <header className={`topbar${compact || back ? ' is-compact' : ''}`}>
       <div className="topbar__inner">
-        {back ? (
+        {typeof back === 'function' ? (
+          <button
+            type="button"
+            className="wordmark wordmark--button"
+            aria-label="Назад"
+            onClick={back}
+          >
+            <Pictogram name="back" size={40} />
+            <span className="wordmark__section">{section}</span>
+          </button>
+        ) : back ? (
           <Link to={back} className="wordmark" aria-label="Назад">
             <Pictogram name="back" size={40} />
             <span className="wordmark__section">{section}</span>

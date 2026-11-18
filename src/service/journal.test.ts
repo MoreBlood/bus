@@ -4,7 +4,6 @@ import { lastOdometer, odometerIssues, summarize, type TripLike, tripDays } from
 
 const trip = (p: Partial<TripLike> & Pick<TripLike, 'id' | 'date' | 'km'>): TripLike => ({
   endDate: null,
-  memberId: null,
   odoStart: null,
   odoEnd: null,
   ...p,
@@ -23,27 +22,12 @@ describe('tripDays', () => {
 });
 
 describe('summarize', () => {
-  it('делит пробег на личный и общий, день считается один раз', () => {
-    const s = summarize(
-      [
-        trip({ id: '1', date: '2026-11-14', km: 100, memberId: 'misha' }),
-        trip({ id: '2', date: '2026-11-14', km: 20, memberId: 'misha' }),
-        trip({ id: '3', date: '2026-11-15', km: 50, memberId: 'anya' }),
-        trip({ id: '4', date: '2026-11-15', km: 42, memberId: null }),
-      ],
-      '2026',
-    );
-    assert.equal(s.totalKm, 212);
-    assert.equal(s.personalKm, 170);
-    assert.equal(s.sharedKm, 42);
-    assert.deepEqual(s.members, [
-      { memberId: 'misha', km: 120, days: 1, trips: 2 },
-      { memberId: 'anya', km: 50, days: 1, trips: 1 },
+  it('делит пробег на поездки владельцев и по делам буса, считает гостей', () => {
+    const s = summarize([
+      { ...trip({ id: '1', date: '2026-11-14', km: 100 }), shared: false, riders: [{ guests: 2 }, { guests: 0 }] },
+      { ...trip({ id: '2', date: '2026-11-15', km: 42 }), shared: true, riders: [] },
     ]);
-  });
-  it('многодневная поездка через Новый год считает только дни этого года', () => {
-    const s = summarize([trip({ id: '1', date: '2025-12-30', endDate: '2026-01-02', km: 400, memberId: 'misha' })], '2026');
-    assert.equal(s.members[0].days, 2);
+    assert.deepEqual(s, { totalKm: 142, personalKm: 100, sharedKm: 42, trips: 2, guests: 2 });
   });
 });
 

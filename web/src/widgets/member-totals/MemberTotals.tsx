@@ -1,6 +1,6 @@
 // Итоги года: общий пробег одной строкой и личные км и дни по участникам.
 import type { Journal, Member } from '@shared/api/types';
-import { daysShort, km, num, plural } from '@shared/lib/format';
+import { daysFrac, guestsLabel, km, num, plural } from '@shared/lib/format';
 
 export function YearLine({ journal }: { journal: Journal }) {
   const s = journal.summary;
@@ -9,8 +9,9 @@ export function YearLine({ journal }: { journal: Journal }) {
       <span className="year-line__label">За {journal.year} год</span>
       <span className="year-line__value">{km(s.totalKm)}</span>
       <span className="year-line__split">
-        личных {num(s.personalKm)} · общих {num(s.sharedKm)} · {s.trips}{' '}
+        владельцы {num(s.personalKm)} · по делам буса {num(s.sharedKm)} · {s.trips}{' '}
         {plural(s.trips, 'поездка', 'поездки', 'поездок')}
+        {s.guests ? ` · ${guestsLabel(s.guests)}` : ''}
       </span>
     </div>
   );
@@ -48,7 +49,7 @@ export function MemberTotals({
                 {t.memberId === meId && <span className="totals__me">вы</span>}
               </span>
               <span className="totals__value">
-                <b>{num(t.km)}</b> · {daysShort(t.days)}
+                <b>{num(t.km)}</b> · {daysFrac(t.days)}
               </span>
             </li>
           ))}

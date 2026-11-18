@@ -83,7 +83,10 @@ describe('HTTP API', () => {
     const j = (await get('/api/journal?year=2026')).body;
     assert.equal(j.summary.totalKm, 310);
     assert.equal(j.summary.sharedKm, 42);
-    assert.deepEqual(j.summary.members, [{ memberId: anya, km: 268, days: 2, trips: 1 }]);
+    const [m] = j.summary.members;
+    assert.equal(j.summary.members.length, 1);
+    assert.deepEqual({ memberId: m.memberId, km: m.km, days: m.days, trips: m.trips, guests: m.guests }, { memberId: anya, km: 268, days: 2, trips: 1, guests: 0 });
+    assert.ok(Math.abs(m.amort - 268 * j.rates.amortPerKm) < 0.01);
     assert.deepEqual(j.lastOdometer, { km: 1368, date: '2026-11-15' });
     assert.equal(j.issues.length, 1);
     assert.equal(j.issues[0].km, 58);
@@ -104,6 +107,43 @@ describe('HTTP API', () => {
     assert.equal((await post('/api/members/update', { id: anya, active: false })).status, 200);
     const onInactive = await post('/api/trips', { date: '2026-11-20', memberId: anya, km: 5 });
     assert.equal(onInactive.status, 400);
+  });
+});
+
+describe('деньги', () => {
+  it('гости на пригласившем, учёт заправок, долги сходятся и гасятся переводом', async () => {
+    const boris = (await post('/api/members', { name: 'Борис' })).body.id;
+    const misha = (await post('/api/members', { name: 'Миша' })).body.id;
+    // Борис позвал двоих гостей, Миша поехал сам: 4 человека, доля Бориса — 3/4
+    const trip = await post('/api/trips', {
+      date: '2026-12-01',
+      riders: [
+        { memberId: boris, guests: 2 },
+        { memberId: misha, guests: 0 },
+      ],
+      km: 400,
+    });
+    assert.equal(trip.status, 200);
+    assert.equal((await post('/api/settings', { fuelMode: 'refuels', amortPerKm: 0.25 })).status, 200);
+    assert.equal((await post('/api/refuels', { date: '2026-12-01', liters: 40, amount: 300, paidBy: misha })).status, 200);
+
+    const m = (await get('/api/money?year=2026')).body;
+    assert.equal(m.rates.fuelSource, 'refuels');
+    const b = m.summary.members.find((x: { memberId: string }) => x.memberId === boris);
+    assert.equal(b.guests, 2);
+    assert.ok(Math.abs(b.km - 300) < 0.01);
+    const sum = m.fuel.accounts.reduce((acc: number, a: { balance: number }) => acc + a.balance, 0);
+    assert.ok(Math.abs(sum) < 0.05, `балансы сходятся: ${sum}`);
+    const toMisha = m.fuel.settlements.find((x: { to: string }) => x.to === misha);
+    assert.ok(toMisha, 'Мише должны за бензин');
+
+    assert.equal((await post('/api/transfers', { date: '2026-12-02', fromId: toMisha.from, toId: misha, amount: toMisha.amount })).status, 200);
+    const after = (await get('/api/money?year=2026')).body;
+    assert.ok(!after.fuel.settlements.some((x: { from: string | null; to: string }) => x.from === toMisha.from && x.to === misha));
+  });
+
+  it('ставки меняют только админы и в разумных пределах', async () => {
+    assert.equal((await post('/api/settings', { amortPerKm: -1 })).status, 400);
   });
 });
 
@@ -168,12 +208,12 @@ describe('MCP', () => {
   });
 
   it('записывает поездку и сообщает об ошибке человеческим текстом', async () => {
-    const ok = await data(await mcp(3, 'tools/call', { name: 'add_trip', arguments: { date: '2026-11-21', member_id: null, km: 15 } }));
+    const ok = await data(await mcp(3, 'tools/call', { name: 'add_trip', arguments: { date: '2026-11-21', shared: true, km: 15 } }));
     assert.ok(!ok.result.isError);
     const bad = await data(
       await mcp(4, 'tools/call', {
         name: 'add_trip',
-        arguments: { date: '2026-11-21', member_id: null, odometer_start: 10, odometer_end: 5 },
+        arguments: { date: '2026-11-21', shared: true, odometer_start: 10, odometer_end: 5 },
       }),
     );
     assert.equal(bad.result.isError, true);

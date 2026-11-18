@@ -5,26 +5,20 @@ export interface TripLike {
   id: string;
   date: string;
   endDate: string | null;
-  memberId: string | null;
   km: number;
   odoStart: number | null;
   odoEnd: number | null;
 }
 
-export interface MemberTotals {
-  memberId: string;
-  km: number;
-  /** дни личного пользования: каждый календарный день считается один раз */
-  days: number;
-  trips: number;
-}
-
 export interface JournalSummary {
   totalKm: number;
+  /** поездки владельцев (в том числе с гостями) */
   personalKm: number;
+  /** поездки по делам буса */
   sharedKm: number;
   trips: number;
-  members: MemberTotals[];
+  /** сколько раз брали гостей (человеко-поездки) */
+  guests: number;
 }
 
 /** Разрыв (gap) или пересечение (overlap) показаний одометра между двумя соседними поездками. */
@@ -57,27 +51,17 @@ export function tripDays(t: Pick<TripLike, 'date' | 'endDate'>): string[] {
   return days;
 }
 
-/** Итоги года: общий, личный и общий пробег, км и дни по участникам. Поездки — уже отфильтрованные по году. */
-export function summarize(trips: TripLike[], year: string): JournalSummary {
-  const byMember = new Map<string, { km: number; days: Set<string>; trips: number }>();
+/** Итоги года: общий пробег, поездки владельцев и по делам буса, гости. Поездки — уже отфильтрованные по году. */
+export function summarize(trips: (TripLike & { shared: boolean; riders: { guests: number }[] })[]): JournalSummary {
   let personalKm = 0;
   let sharedKm = 0;
+  let guests = 0;
   for (const t of trips) {
-    if (t.memberId === null) {
-      sharedKm += t.km;
-      continue;
-    }
-    personalKm += t.km;
-    let m = byMember.get(t.memberId);
-    if (!m) byMember.set(t.memberId, (m = { km: 0, days: new Set(), trips: 0 }));
-    m.km += t.km;
-    m.trips += 1;
-    // многодневная поездка через Новый год: в этот год идут только его дни
-    for (const d of tripDays(t)) if (d.startsWith(`${year}-`)) m.days.add(d);
+    if (t.shared) sharedKm += t.km;
+    else personalKm += t.km;
+    for (const r of t.riders) guests += r.guests;
   }
-  const members = [...byMember].map(([memberId, m]) => ({ memberId, km: m.km, days: m.days.size, trips: m.trips }));
-  members.sort((a, b) => b.km - a.km || b.days - a.days);
-  return { totalKm: personalKm + sharedKm, personalKm, sharedKm, trips: trips.length, members };
+  return { totalKm: personalKm + sharedKm, personalKm, sharedKm, trips: trips.length, guests };
 }
 
 /**

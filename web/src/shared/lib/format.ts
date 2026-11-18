@@ -61,3 +61,22 @@ export function plural(n: number, one: string, few: string, many: string) {
 
 export const days = (n: number) => `${n} ${plural(n, 'день', 'дня', 'дней')}`;
 export const daysShort = (n: number) => `${n} дн`;
+
+const zlInt = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
+const zl2 = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const dec1 = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 });
+
+/** 1240.4 → «1 240 zł» */
+export const zl = (n: number) => `${zlInt.format(Math.abs(n) < 0.5 ? 0 : n)}\u00a0zł`;
+/** ставка: 0.3 → «0,30 zł» */
+export const zlRate = (n: number) => `${zl2.format(n)}\u00a0zł`;
+/** дни бывают дробными (день делится между владельцами): 4.5 → «4,5 дн» */
+export const daysFrac = (n: number) => `${dec1.format(n)}\u00a0дн`;
+export const dec = (n: number) => dec1.format(n);
+
+/** «гость», «2 гостя», «5 гостей» */
+export const guestsLabel = (n: number) => `${n}\u00a0${plural(n, 'гость', 'гостя', 'гостей')}`;
+
+/** Сдвиг даты YYYY-MM-DD на n дней. */
+export const addDays = (d: string, n: number) =>
+  new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
