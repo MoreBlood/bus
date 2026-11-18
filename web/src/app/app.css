@@ -193,11 +193,20 @@ a {
   top: 0;
   z-index: 20;
   background: var(--sign-yellow);
-  border-bottom: 1px solid transparent;
-  transition: border-color 160ms var(--ease-out);
 }
-.topbar.is-compact {
-  border-bottom: var(--band-rule) solid var(--sign-black);
+/* рама панели появляется, когда табличка одометра ушла под полосу */
+.topbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(-1 * var(--band-rule));
+  height: var(--band-rule);
+  background: var(--sign-black);
+  visibility: hidden;
+}
+.topbar.is-compact::after {
+  visibility: visible;
 }
 .topbar__inner,
 .band__inner,
@@ -1158,8 +1167,8 @@ code {
   display: grid;
   grid-template-areas:
     "year"
-    "feed"
-    "totals";
+    "totals"
+    "feed";
 }
 .journal-grid__year {
   grid-area: year;
@@ -1281,5 +1290,43 @@ code {
     grid-area: km;
     align-self: center;
     font-size: 26px;
+  }
+}
+
+/* плашка ассистента: на телефоне — короткий заголовок с названиями ассистентов в одну строку */
+.assistant-banner__link .assistant-banner__short {
+  display: none;
+}
+.demo-tag {
+  margin-left: 2px;
+}
+@media (max-width: 559px) {
+  .assistant-banner__link .assistant-banner__long {
+    display: none;
+  }
+  .assistant-banner__link .assistant-banner__short {
+    display: block;
+  }
+  .assistant-banner__link {
+    grid-template-columns: auto 1fr;
+  }
+  .assistant-banner__link > svg {
+    display: none;
+  }
+  .assistant-banner__link b {
+    font-size: 15px;
+    white-space: nowrap;
+  }
+  .totals__row {
+    min-height: 30px;
+    padding: 3px 0;
+    font-size: 15px;
+  }
+  .journal-grid__totals .section {
+    padding-top: 18px;
+  }
+  .totals__idle {
+    margin-top: 6px;
+    font-size: 14px;
   }
 }

@@ -94,7 +94,7 @@ export function JournalPage() {
         {setup && !setup.auth && (
           <p className="local-note">
             <span className="tag tag--muted">локально</span>
-            Данные только на этом компьютере
+            Копия для разработки: поездки с меткой «демо» вымышленные
           </p>
         )}
         <AssistantBanner />

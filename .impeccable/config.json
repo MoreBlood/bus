@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "marquee",
+        "value": "*",
+        "files": [
+          "public/**"
+        ],
+        "createdAt": "2026-11-18T11:39:40.410Z",
+        "reason": "Claude: shimmer of Radix Themes Progress (indeterminate) from the bundled library CSS; the app never renders Progress, public/ is build output"
+      }
+    ]
+  }
+}

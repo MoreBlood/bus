@@ -23,7 +23,15 @@ function TripRow({ trip, byId, fresh }: { trip: Trip; byId: Map<string, Member>;
       <Link to={`/trips/${trip.id}`} className={`trip-row${fresh ? ' is-fresh' : ''}`}>
         <Pictogram name={trip.memberId === null ? 'people' : 'person'} size={40} label={who} />
         <span className="trip-row__main">
-          <span className="trip-row__title">{trip.note || who}</span>
+          <span className="trip-row__title">
+            {trip.note || who}
+            {trip.createdBy === 'demo' && (
+              <>
+                {' '}
+                <span className="tag tag--muted demo-tag">демо</span>
+              </>
+            )}
+          </span>
           <span className="trip-row__meta">
             {meta.map((part, i) => (
               // точка остаётся в конце строки, перенос — после неё

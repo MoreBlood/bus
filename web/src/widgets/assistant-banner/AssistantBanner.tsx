@@ -34,7 +34,8 @@ export function AssistantBanner() {
       <Link to="/assistant" className="assistant-banner__link">
         <Pictogram name="key" size={40} tone="yellow" />
         <span>
-          <b>Записывайте поездки разговором</b>
+          <b className="assistant-banner__long">Записывайте поездки разговором</b>
+          <b className="assistant-banner__short">Подключите Claude или ChatGPT</b>
           <span className="assistant-banner__sub">
             Подключите Claude или ChatGPT к журналу — пара минут
           </span>
