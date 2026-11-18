@@ -1906,11 +1906,6 @@ a.text-button {
 .money-row .person__meta + .person__meta {
   margin-top: 2px;
 }
-@media (min-width: 768px) {
-  .money-cta {
-    display: none;
-  }
-}
 /* открыт редактор — у него своя главная кнопка, вторая жёлтая внизу только мешает */
 body:has(.person__editor) .dock__cta {
   display: none;
@@ -1958,10 +1953,7 @@ body:has(.person__editor) .dock__cta {
   margin: 0;
 }
 .empty__text {
-  margin: 12px 0 16px;
-}
-.empty__cta {
-  max-width: 360px;
+  margin: 12px 0 0;
 }
 
 /* телефон: плотнее по вертикали — каждый пиксель над сгибом на счету */
@@ -2007,10 +1999,6 @@ body:has(.person__editor) .dock__cta {
   }
   .app-main.has-cta {
     padding-bottom: calc(58px + 68px + env(safe-area-inset-bottom));
-  }
-  /* в пустом журнале главное действие и так прибито к низу */
-  .empty__cta {
-    display: none;
   }
   .step-q {
     margin-bottom: 16px;
