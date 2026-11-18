@@ -12,31 +12,31 @@ export const OdometerBand = forwardRef<
   return (
     <section className="band" aria-label="Одометр">
       <div className="band__inner band__inner--journal">
-        <div className="odo-sign" ref={ref}>
+        <div className={`odo-sign${last === null ? ' odo-sign--empty' : ''}`} ref={ref}>
           <Pictogram name="gauge" size={48} />
-          <span className="odo-sign__label">Одометр</span>
-          {last === undefined ? (
+          <span className="odo-sign__label">
+            Одометр
+            {last === null && <small>появится после первой поездки по одометру</small>}
+          </span>
+          {last === undefined && (
             <span
               className="odo-sign__value skeleton"
               style={{ width: '6.2ch', color: 'transparent' }}
             >
               000 000
             </span>
-          ) : last ? (
+          )}
+          {last && (
             <span className="odo-sign__value">
               {num(last.km)}
               <span className="odo-sign__unit">км</span>
             </span>
-          ) : (
-            <span className="odo-sign__value">—</span>
           )}
-          <span className="odo-sign__meta">
-            {last === undefined
-              ? ' '
-              : last
-                ? `по последней записи, ${longDate(last.date)}`
-                : 'Показаний ещё нет: запишите поездку по одометру'}
-          </span>
+          {last !== null && (
+            <span className="odo-sign__meta">
+              {last ? `по последней записи, ${longDate(last.date)}` : '\u00a0'}
+            </span>
+          )}
         </div>
         <div className="band__cta">
           <SignLink to="/trips/new" tone="black">

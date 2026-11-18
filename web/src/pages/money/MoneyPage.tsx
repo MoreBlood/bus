@@ -253,64 +253,74 @@ export function MoneyPage() {
                 </h2>
                 <span className="section__aside">с гостями</span>
               </div>
-              <ul className="people">
-                {m.summary.members.map((x) => {
-                  const a = account(x.memberId);
-                  return (
-                    <li key={x.memberId} className="person">
+              {m.summary.members.length === 0 && m.summary.fund.km === 0 ? (
+                <p className="prose">
+                  Поездок за {m.year} нет — суммы появятся после первой записи.
+                </p>
+              ) : (
+                <>
+                  <ul className="people">
+                    {m.summary.members.map((x) => {
+                      const a = account(x.memberId);
+                      return (
+                        <li key={x.memberId} className="person">
+                          <div className="money-row">
+                            <div>
+                              <div className="person__name">
+                                {name(x.memberId)}
+                                {x.memberId === viewer?.memberId && (
+                                  <span className="totals__me">вы</span>
+                                )}
+                              </div>
+                              <div className="person__meta">
+                                <span>{num(x.km)} км</span>
+                                <span>{daysFrac(x.days)}</span>
+                                {x.guests > 0 && <span>{guestsLabel(x.guests)}</span>}
+                              </div>
+                              <div className="person__meta">
+                                <span>амортизация {zl(x.amort)}</span>
+                                <span>бензин {zl(x.fuel)}</span>
+                                {a && <span>заплатил {zl(a.paid)}</span>}
+                              </div>
+                            </div>
+                            <div className="money-row__sum">
+                              <b>{zl(x.amort + x.fuel)}</b>
+                              {a && Math.abs(a.balance) >= 1 && (
+                                <small className={a.balance > 0 ? 'is-plus' : 'is-minus'}>
+                                  {a.balance > 0
+                                    ? `ему ${zl(a.balance)}`
+                                    : `с него ${zl(-a.balance)}`}
+                                </small>
+                              )}
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                    <li className="person">
                       <div className="money-row">
                         <div>
-                          <div className="person__name">
-                            {name(x.memberId)}
-                            {x.memberId === viewer?.memberId && (
-                              <span className="totals__me">вы</span>
-                            )}
-                          </div>
+                          <div className="person__name">Касса — по делам буса</div>
                           <div className="person__meta">
-                            <span>{num(x.km)} км</span>
-                            <span>{daysFrac(x.days)}</span>
-                            {x.guests > 0 && <span>{guestsLabel(x.guests)}</span>}
-                          </div>
-                          <div className="person__meta">
-                            <span>амортизация {zl(x.amort)}</span>
-                            <span>бензин {zl(x.fuel)}</span>
-                            {a && <span>заплатил {zl(a.paid)}</span>}
+                            <span>{num(m.summary.fund.km)} км</span>
+                            <span>амортизация {zl(m.summary.fund.amort)}</span>
+                            <span>бензин {zl(m.summary.fund.fuel)}</span>
                           </div>
                         </div>
                         <div className="money-row__sum">
-                          <b>{zl(x.amort + x.fuel)}</b>
-                          {a && Math.abs(a.balance) >= 1 && (
-                            <small className={a.balance > 0 ? 'is-plus' : 'is-minus'}>
-                              {a.balance > 0 ? `ему ${zl(a.balance)}` : `с него ${zl(-a.balance)}`}
-                            </small>
-                          )}
+                          <b>{zl(m.summary.fund.amort + m.summary.fund.fuel)}</b>
                         </div>
                       </div>
                     </li>
-                  );
-                })}
-                <li className="person">
-                  <div className="money-row">
-                    <div>
-                      <div className="person__name">Касса — по делам буса</div>
-                      <div className="person__meta">
-                        <span>{num(m.summary.fund.km)} км</span>
-                        <span>амортизация {zl(m.summary.fund.amort)}</span>
-                        <span>бензин {zl(m.summary.fund.fuel)}</span>
-                      </div>
-                    </div>
-                    <div className="money-row__sum">
-                      <b>{zl(m.summary.fund.amort + m.summary.fund.fuel)}</b>
-                    </div>
-                  </div>
-                </li>
-              </ul>
-              <p className="field__hint">
-                Амортизация копится в кассу на ремонт и износ.{' '}
-                {m.settings.fuelMode === 'rate'
-                  ? 'Бензин в режиме «бак на бак» делят в самой поездке — здесь он для справки.'
-                  : 'Бензин — по заправкам: долги выше.'}
-              </p>
+                  </ul>
+                  <p className="field__hint">
+                    Амортизация копится в кассу на ремонт и износ.{' '}
+                    {m.settings.fuelMode === 'rate'
+                      ? 'Бензин в режиме «бак на бак» делят в самой поездке — здесь он для справки.'
+                      : 'Бензин — по заправкам: долги выше.'}
+                  </p>
+                </>
+              )}
             </section>
           )}
 

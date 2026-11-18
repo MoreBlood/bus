@@ -107,7 +107,10 @@ export function JournalPage() {
         )}
         <AssistantBanner />
         {(!journal || sessionLoading) && !error && <JournalSkeleton />}
-        {journal && !sessionLoading && (
+        {journal && !sessionLoading && journal.trips.length === 0 && (
+          <EmptyJournal journal={journal} onCurrentYear={() => setParams({})} />
+        )}
+        {journal && !sessionLoading && journal.trips.length > 0 && (
           <div className="journal-grid">
             <div className="journal-grid__year">
               <YearLine journal={journal} />
@@ -128,28 +131,46 @@ export function JournalPage() {
                   </span>
                 )}
               </div>
-              {journal.trips.length > 0 ? (
-                <TripFeed journal={journal} byId={memberById} freshId={freshId} />
-              ) : (
-                <div className="empty">
-                  <Pictogram name="van" size={48} />
-                  <h3 className="empty__title">За {journal.year} поездок нет</h3>
-                  <p className="empty__text">
-                    Запишите первую: укажите показания одометра до и после — пробег посчитается сам,
-                    а следующая поездка начнётся с того места, где закончилась эта.
-                  </p>
-                  <div style={{ maxWidth: 360 }}>
-                    <SignLink to="/trips/new" size="md">
-                      Записать поездку
-                    </SignLink>
-                  </div>
-                </div>
-              )}
+              <TripFeed journal={journal} byId={memberById} freshId={freshId} />
             </section>
           </div>
         )}
       </div>
     </>
+  );
+}
+
+/** Пустой журнал или пустой год: одно понятное сообщение вместо нулевых итогов. */
+function EmptyJournal({ journal, onCurrentYear }: { journal: Journal; onCurrentYear: () => void }) {
+  const firstEver = !journal.lastOdometer && journal.years.length <= 1;
+  const otherYear = journal.year !== journal.years[0];
+  return (
+    <div className="empty">
+      <div className="empty__head">
+        <Pictogram name="van" size={40} />
+        <h2 className="empty__title">
+          {firstEver ? 'Журнал пока пуст' : `За ${journal.year} поездок нет`}
+        </h2>
+      </div>
+      <p className="empty__text">
+        {firstEver
+          ? 'Запишите первую поездку: кто ехал, когда и сколько проехали. Её сразу увидят все совладельцы, а следующая поездка начнётся с того же одометра.'
+          : 'Записи за другие годы — в выборе года наверху.'}
+        {otherYear && (
+          <>
+            {' '}
+            <button type="button" className="inline-link" onClick={onCurrentYear}>
+              К {journal.years[0]} году
+            </button>
+          </>
+        )}
+      </p>
+      <div className="empty__cta">
+        <SignLink to="/trips/new" size="md">
+          Записать поездку
+        </SignLink>
+      </div>
+    </div>
   );
 }
 

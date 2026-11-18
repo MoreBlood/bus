@@ -1618,3 +1618,91 @@ code {
     padding-bottom: calc(58px + 78px + env(safe-area-inset-bottom));
   }
 }
+
+/* одометра ещё нет — компактная табличка без пустой большой цифры */
+.odo-sign--empty {
+  padding-bottom: 16px;
+}
+.odo-sign--empty .odo-sign__label small {
+  display: block;
+  margin-top: 2px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #3b3000;
+}
+
+/* пустой журнал: знак и заголовок в строку, без лишних отступов */
+.empty {
+  padding: 20px 0 8px;
+  border-top: 0;
+}
+.empty__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.empty__head .empty__title {
+  margin: 0;
+}
+.empty__text {
+  margin: 12px 0 16px;
+}
+.empty__cta {
+  max-width: 360px;
+}
+
+/* телефон: плотнее по вертикали — каждый пиксель над сгибом на счету */
+@media (max-width: 767px) {
+  .topbar__inner {
+    min-height: 56px;
+  }
+  .odo-sign {
+    padding-top: 4px;
+    padding-bottom: 14px;
+  }
+  .odo-sign .pictogram {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  .odo-sign__value {
+    margin-top: 4px;
+  }
+  .odo-sign__meta {
+    margin-top: 6px;
+    font-size: 14px;
+  }
+  .odo-sign--empty {
+    padding-bottom: 12px;
+  }
+  .section {
+    padding-top: 22px;
+  }
+  .section__title {
+    font-size: 19px;
+  }
+  .local-note {
+    margin-top: 12px;
+  }
+  .sign-button--lg {
+    min-height: 56px;
+  }
+  .sign-button--lg .sign-button__arrow {
+    width: 56px;
+  }
+  .dock__cta {
+    padding-bottom: 8px;
+  }
+  .app-main.has-cta {
+    padding-bottom: calc(58px + 68px + env(safe-area-inset-bottom));
+  }
+  /* в пустом журнале главное действие и так прибито к низу */
+  .empty__cta {
+    display: none;
+  }
+  .step-q {
+    margin-bottom: 16px;
+  }
+  .wizard-progress {
+    margin-bottom: 18px;
+  }
+}
