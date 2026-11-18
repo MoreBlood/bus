@@ -5,7 +5,6 @@ import { km } from '@shared/lib/format';
 import { useSession } from '@shared/model/session';
 import { useSetup } from '@shared/model/setup';
 import { Pictogram } from '@shared/ui/Pictogram';
-import { SignLink } from '@shared/ui/SignButton';
 import { AssistantBanner } from '@widgets/assistant-banner/AssistantBanner';
 import { MemberTotals, YearLine } from '@widgets/member-totals/MemberTotals';
 import { OdometerBand } from '@widgets/odometer-band/OdometerBand';
@@ -165,11 +164,6 @@ function EmptyJournal({ journal, onCurrentYear }: { journal: Journal; onCurrentY
           </>
         )}
       </p>
-      <div className="empty__cta">
-        <SignLink to="/trips/new" size="md">
-          Записать поездку
-        </SignLink>
-      </div>
     </div>
   );
 }

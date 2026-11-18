@@ -346,11 +346,6 @@ export function MoneyPage() {
                   ))}
                 </ul>
               )}
-              <div style={{ marginTop: 16, maxWidth: 360 }} className="money-cta">
-                <SignLink to="/refuels/new" size="md" icon="pump">
-                  Записать заправку
-                </SignLink>
-              </div>
             </section>
           )}
 
