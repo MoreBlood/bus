@@ -1,17 +1,12 @@
 import { type TripPrefill, TripWizard } from '@features/trip-wizard/TripWizard';
-import {
-  createTrip,
-  deleteTrip,
-  errorText,
-  fetchJournal,
-  fetchTrip,
-  updateTrip,
-} from '@shared/api/client';
-import type { Journal, Trip, TripInput } from '@shared/api/types';
+import { createTrip, deleteTrip, errorText, updateTrip } from '@shared/api/client';
+import { queries, useRefresh, useSettled } from '@shared/api/queries';
+import type { TripInput } from '@shared/api/types';
 import { longDate } from '@shared/lib/format';
 import { useSession } from '@shared/model/session';
+import { useQuery } from '@tanstack/react-query';
 import { Topbar } from '@widgets/topbar/Topbar';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 type Step = 0 | 1 | 2 | 3;
@@ -34,31 +29,26 @@ export function TripPage() {
       : undefined;
   });
   const { members, viewer, loading } = useSession();
-  const [trip, setTrip] = useState<Trip | null | undefined>(id ? undefined : null);
-  const [journal, setJournal] = useState<Journal | null>(null);
-  const [step, setStep] = useState<Step>(id ? 3 : 0);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (id)
-      fetchTrip(id)
-        .then(setTrip)
-        .catch((e) => setError(errorText(e)));
-  }, [id]);
+  const refresh = useRefresh();
+  const tripQ = useQuery({ ...queries.trip(id ?? ''), enabled: !!id });
+  const loaded = useSettled(tripQ);
+  const trip = id ? loaded : null;
   // ставки и последнее показание одометра — из журнала года поездки
   const year = trip?.date.slice(0, 4) ?? prefill?.date?.slice(0, 4);
-  useEffect(() => {
-    if (id && !year) return;
-    fetchJournal(year)
-      .then(setJournal)
-      .catch((e) => setError(errorText(e)));
-  }, [id, year]);
+  const journalQ = useQuery({ ...queries.journal(year), enabled: !id || !!year });
+  const journal = useSettled(journalQ);
+  const [step, setStep] = useState<Step>(id ? 3 : 0);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setError] = useState<string | null>(null);
+  const failed = [tripQ, journalQ].find((x) => x.error && !x.data)?.error;
+  const error = actionError ?? (failed ? errorText(failed) : null);
 
-  const back = (fresh?: string, y?: string) =>
+  const back = (fresh?: string, y?: string) => {
+    refresh();
     navigate(y && y !== String(new Date().getFullYear()) ? `/?year=${y}` : '/', {
       state: fresh ? { fresh } : null,
     });
+  };
 
   const submit = async (input: TripInput) => {
     setBusy(true);
@@ -105,7 +95,7 @@ export function TripPage() {
         back={onBack}
       />
       <div className="page">
-        {id && trip === undefined && error ? (
+        {!ready && error ? (
           <div className="notice notice--error" role="alert" style={{ marginTop: 20 }}>
             <span>{error}</span>
           </div>

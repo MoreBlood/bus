@@ -1,47 +1,37 @@
 import { RefuelWizard } from '@features/refuel-wizard/RefuelWizard';
-import {
-  createRefuel,
-  deleteRefuel,
-  errorText,
-  fetchJournal,
-  fetchRefuel,
-  updateRefuel,
-} from '@shared/api/client';
-import type { FuelType, Refuel, RefuelInput } from '@shared/api/types';
+import { createRefuel, deleteRefuel, errorText, updateRefuel } from '@shared/api/client';
+import { queries, useRefresh, useSettled } from '@shared/api/queries';
+import type { RefuelInput } from '@shared/api/types';
 import { longDate } from '@shared/lib/format';
 import { useSession } from '@shared/model/session';
+import { useQuery } from '@tanstack/react-query';
 import { Topbar } from '@widgets/topbar/Topbar';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 export function RefuelPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { members, viewer, loading } = useSession();
-  const [refuel, setRefuel] = useState<Refuel | null | undefined>(id ? undefined : null);
-  const [lastOdo, setLastOdo] = useState<number | null | undefined>(id ? null : undefined);
-  const [fuelType, setFuelType] = useState<FuelType>('diesel');
+  const refresh = useRefresh();
+  const refuelQ = useQuery({ ...queries.refuel(id ?? ''), enabled: !!id });
+  const loaded = useSettled(refuelQ);
+  const refuel = id ? loaded : null;
+  // последнее показание одометра и чем заправляем (литры или кВт·ч); не загрузилось — без подсказки
+  const journalQ = useQuery(queries.journal());
+  const journal = useSettled(journalQ);
+  const journalDone = journal !== undefined || (journalQ.isError && !journalQ.data);
+  const lastOdo = journalDone ? (id ? null : (journal?.lastOdometer?.km ?? null)) : undefined;
+  const fuelType = journal?.settings.fuelType ?? 'diesel';
   const [step, setStep] = useState<0 | 1>(id ? 1 : 0);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [actionError, setError] = useState<string | null>(null);
+  const error = actionError ?? (refuelQ.error && !refuelQ.data ? errorText(refuelQ.error) : null);
 
-  useEffect(() => {
-    if (id)
-      fetchRefuel(id)
-        .then(setRefuel)
-        .catch((e) => setError(errorText(e)));
-    // последнее показание одометра и чем заправляем (литры или кВт·ч)
-    fetchJournal()
-      .then((j) => {
-        if (!id) setLastOdo(j.lastOdometer?.km ?? null);
-        setFuelType(j.settings.fuelType);
-      })
-      .catch(() => {
-        if (!id) setLastOdo(null);
-      });
-  }, [id]);
-
-  const done = () => navigate('/money');
+  const done = () => {
+    refresh();
+    navigate('/money');
+  };
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
     setError(null);

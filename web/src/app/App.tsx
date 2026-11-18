@@ -11,10 +11,12 @@ import { RepairPage } from '@pages/repair/RepairPage';
 import { SetupPage } from '@pages/setup/SetupPage';
 import { TripPage } from '@pages/trip/TripPage';
 import { Theme } from '@radix-ui/themes';
+import { queryClient } from '@shared/api/queries';
 import { SessionProvider, useSession } from '@shared/model/session';
 import { SetupProvider, useSetupLoader } from '@shared/model/setup';
 import { Glyph } from '@shared/ui/Pictogram';
 import { SignButton, SignLink } from '@shared/ui/SignButton';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Topbar } from '@widgets/topbar/Topbar';
 import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { NAV } from './nav';
@@ -121,9 +123,11 @@ export function App() {
       radius="none"
       panelBackground="solid"
     >
-      <BrowserRouter>
-        <Gate />
-      </BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Gate />
+        </BrowserRouter>
+      </QueryClientProvider>
     </Theme>
   );
 }
