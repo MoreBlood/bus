@@ -98,7 +98,7 @@ web/src/
 |---|---|
 | `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | ставит интеграция Turso |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | OAuth App на GitHub, callback `https://bus.akapps.click/api/auth/callback/github` |
-| `ADMIN_GITHUB_USERS` | главные админы, через запятую |
+| `ADMIN_GITHUB_USERS` | главные админы (логины GitHub), через запятую; при первом входе привязываются к id аккаунта — после переименования на GitHub обновите и здесь |
 | `BETTER_AUTH_URL` | `https://bus.akapps.click` |
 | `BETTER_AUTH_SECRET` | случайная строка (`openssl rand -hex 32`) |
 

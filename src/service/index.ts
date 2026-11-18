@@ -1,6 +1,7 @@
 // Все операции сервиса в одном месте — их зовут HTTP-API (дашборд) и MCP (агенты).
 import type { Db } from '../db/index.ts';
 import * as assistantSvc from './assistant.ts';
+import * as oauthClientsSvc from './oauth-clients.ts';
 import * as membersSvc from './members.ts';
 import type { Viewer } from './members.ts';
 import * as tripsSvc from './trips.ts';
@@ -8,9 +9,9 @@ import * as tripsSvc from './trips.ts';
 export function createService(db: Db) {
   return {
     // доступ
-    canSignIn: (login: string) => membersSvc.canSignIn(db, login),
-    resolveViewer: (login: string) => membersSvc.resolveViewer(db, login),
-    loginByUserId: (userId: string) => membersSvc.loginByUserId(db, userId),
+    canSignIn: (login: string, githubId: string) => membersSvc.admitGithubUser(db, login, githubId),
+    resolveViewer: (userId: string) => membersSvc.resolveViewer(db, userId),
+    guardClientRegistration: () => oauthClientsSvc.guardClientRegistration(db),
 
     // участники
     members: () => membersSvc.listMembers(db),
