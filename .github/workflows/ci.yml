@@ -1,32 +1,122 @@
-# Проверки для каждого PR и пуша в main: типы, тесты, линтер, сборка фронта и миграции на чистой базе.
-# Деплой делает Vercel сам (продакшен — только из main).
+# Проверки каждого PR и каждого коммита в main. Мерж в main разрешён только при зелёной
+# проверке «Готово к мержу» (правило репозитория «Защита main»). Деплой делает Vercel сам.
 name: CI
 
 on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+# новый пуш в ту же ветку PR отменяет устаревший прогон
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  check:
+  server:
+    name: Сервер — типы и тесты
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-fund --no-audit
+      - name: Типы сервера
+        run: npm run typecheck
+      - name: Тесты (расчёты журнала, HTTP API, MCP)
+        run: npm test
+
+  web:
+    name: Фронт — линтер и типы
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --prefix web --no-fund --no-audit
+      - name: Biome (формат и линтер)
+        run: npm run lint --prefix web
+      - name: Типы фронта
+        run: npm run typecheck --prefix web
+
+  database:
+    name: База — миграции и схема
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-fund --no-audit
+      - name: Миграции согласованы
+        run: npx drizzle-kit check
+      - name: Схема не разошлась с миграциями
+        run: |
+          npx drizzle-kit generate --name schema-drift-check
+          if [ -n "$(git status --porcelain drizzle)" ]; then
+            echo "::error title=Нет миграции::src/db/schema.ts изменён, а миграции нет. Запустите npm run db:generate и закоммитьте папку drizzle/."
+            git status --porcelain drizzle
+            exit 1
+          fi
+      - name: Миграции и демо-данные на пустой базе
+        run: npm run migrate && npm run demo
+
+  build:
+    name: Сборка как на Vercel
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: |
             package-lock.json
             web/package-lock.json
       - run: npm ci --no-fund --no-audit
-      - run: npm ci --prefix web --no-fund --no-audit
-      - name: Типы, тесты, линтер
-        run: npm run check
-      - name: Сборка фронта
-        run: npm run build --prefix web
-      - name: Миграции на пустой базе
-        run: npm run migrate && npm run demo
+      - name: npm run build (фронт + миграции, ровно как в продакшене)
+        run: npm run build
+
+  ready:
+    name: Готово к мержу
+    if: always()
+    needs: [server, web, database, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Итог
+        env:
+          SERVER: ${{ needs.server.result }}
+          WEB: ${{ needs.web.result }}
+          DATABASE: ${{ needs.database.result }}
+          BUILD: ${{ needs.build.result }}
+        run: |
+          mark() { [ "$1" = success ] && echo "✅" || echo "❌ $1"; }
+          {
+            echo "### Проверки"
+            echo
+            echo "| Проверка | Результат |"
+            echo "|---|---|"
+            echo "| Сервер — типы и тесты | $(mark "$SERVER") |"
+            echo "| Фронт — линтер и типы | $(mark "$WEB") |"
+            echo "| База — миграции и схема | $(mark "$DATABASE") |"
+            echo "| Сборка как на Vercel | $(mark "$BUILD") |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for r in "$SERVER" "$WEB" "$DATABASE" "$BUILD"; do
+            if [ "$r" != success ]; then echo "::error::Не все проверки прошли — в main это не попадёт."; exit 1; fi
+          done
+          echo "Всё зелёное — можно мержить."
