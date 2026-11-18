@@ -7,6 +7,8 @@ import type {
   PeriodInput,
   Refuel,
   RefuelInput,
+  Repair,
+  RepairInput,
   Setup,
   TripInput,
   Viewer,
@@ -93,6 +95,11 @@ export const createRefuel = (b: RefuelInput) => post<{ id: string }>('/api/refue
 export const updateRefuel = (id: string, b: RefuelInput) =>
   post<{ ok: boolean }>('/api/refuels/update', { id, ...b });
 export const deleteRefuel = (id: string) => post<{ ok: boolean }>('/api/refuels/delete', { id });
+export const fetchRepair = (id: string) => get<Repair>(`/api/repairs/${id}`);
+export const createRepair = (b: RepairInput) => post<{ id: string }>('/api/repairs', b);
+export const updateRepair = (id: string, b: RepairInput) =>
+  post<{ ok: boolean }>('/api/repairs/update', { id, ...b });
+export const deleteRepair = (id: string) => post<{ ok: boolean }>('/api/repairs/delete', { id });
 export const createTransfer = (b: {
   date: string;
   fromId: string | null;

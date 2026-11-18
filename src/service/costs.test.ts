@@ -5,9 +5,11 @@ import {
   type CostTrip,
   DEFAULT_SETTINGS,
   fuelIntervals,
-  fuelLedger,
+  fuelUsed,
+  ledger,
   moneySummary,
   periodFor,
+  repairShares,
   type RatePeriod,
   tripCost,
   tripRates,
@@ -114,7 +116,7 @@ describe('учёт заправок по полным бакам', () => {
   });
 });
 
-describe('moneySummary и fuelLedger', () => {
+describe('moneySummary и учёт долгов', () => {
   const r = { amortPerKm: 0.3, fuelPerKm: 1 };
   const trips = [
     trip({ km: 300, riders: [{ memberId: 'misha', guests: 2 }] }),
@@ -132,14 +134,14 @@ describe('moneySummary и fuelLedger', () => {
   });
 
   it('долги гасятся переводами', () => {
-    const { accounts, settlements } = fuelLedger(s, [{ paidBy: 'anya', amount: 537 }], []);
+    const { accounts, settlements } = ledger(fuelUsed(s), [{ paidBy: 'anya', amount: 537 }], []);
     near(accounts.reduce((sum, a) => sum + a.balance, 0), 0);
     // касса везёт и поездку по делам буса (100), и неучтённые 37 км (37)
     assert.deepEqual(settlements, [
       { from: 'misha', to: 'anya', amount: 300 },
       { from: null, to: 'anya', amount: 137 },
     ]);
-    const after = fuelLedger(s, [{ paidBy: 'anya', amount: 537 }], [{ fromId: 'misha', toId: 'anya', amount: 300 }]);
+    const after = ledger(fuelUsed(s), [{ paidBy: 'anya', amount: 537 }], [{ fromId: 'misha', toId: 'anya', amount: 300 }]);
     assert.deepEqual(after.settlements, [{ from: null, to: 'anya', amount: 137 }]);
   });
 });
@@ -152,7 +154,7 @@ describe('порядок переводов', () => {
       fuel: 500,
     });
     // Аня заплатила 300; касса «должна» 500 за неучтённые км, Миша — 100 за свою поездку
-    const { settlements } = fuelLedger(s, [{ paidBy: 'anya', amount: 300 }], []);
+    const { settlements } = ledger(fuelUsed(s), [{ paidBy: 'anya', amount: 300 }], []);
     assert.deepEqual(settlements[0], { from: 'misha', to: 'anya', amount: 100 });
     assert.deepEqual(settlements[1], { from: null, to: 'anya', amount: 200 });
   });
@@ -171,5 +173,61 @@ describe('помощник амортизации', () => {
       kmPerYear: 25000,
     });
     near(rate, 0.304);
+  });
+});
+
+describe('ремонт из резерва', () => {
+  const owners = ['misha', 'anya', 'kostya'];
+  // Миша наездил износа на 300, Аня на 100, Костя — ничего
+  const accruals = [
+    { date: '2026-03-01', memberId: 'misha', amort: 300 },
+    { date: '2026-03-05', memberId: 'anya', amort: 100 },
+  ];
+  const repair = (id: string, date: string, amount: number, p: Partial<{ kind: 'repair' | 'upgrade'; chargedTo: string }> = {}) => ({
+    id,
+    date,
+    amount,
+    kind: p.kind ?? ('repair' as const),
+    chargedTo: p.chargedTo ?? null,
+  });
+  const share = (r: ReturnType<typeof repairShares>, id: string, m: string) =>
+    r.splits.get(id)?.shares.find((x) => x.memberId === m)?.amount ?? 0;
+
+  it('ремонт делится по тому, кто сколько износил', () => {
+    const r = repairShares(accruals, [repair('r1', '2026-04-01', 200)], owners);
+    near(share(r, 'r1', 'misha'), 150);
+    near(share(r, 'r1', 'anya'), 50);
+    assert.equal(share(r, 'r1', 'kostya'), 0);
+    near(r.reserve.left, 200);
+    near(r.reserve.spent, 200);
+  });
+
+  it('не хватило резерва — остаток поровну на владельцев', () => {
+    const r = repairShares(accruals, [repair('r1', '2026-04-01', 700)], owners);
+    near(share(r, 'r1', 'misha'), 300 + 100);
+    near(share(r, 'r1', 'anya'), 100 + 100);
+    near(share(r, 'r1', 'kostya'), 100);
+    near(r.reserve.overflow, 300);
+    near(r.reserve.left, 0);
+  });
+
+  it('износ после ремонта в него не идёт', () => {
+    const r = repairShares(accruals, [repair('r1', '2026-03-02', 100)], owners);
+    near(share(r, 'r1', 'misha'), 100);
+    assert.equal(share(r, 'r1', 'anya'), 0);
+  });
+
+  it('улучшение — поровну, поломка по вине — на виновнике, резерв не трогают', () => {
+    const r = repairShares(accruals, [repair('u', '2026-04-01', 900, { kind: 'upgrade' }), repair('f', '2026-04-02', 120, { chargedTo: 'kostya' })], owners);
+    near(share(r, 'u', 'anya'), 300);
+    near(share(r, 'f', 'kostya'), 120);
+    near(r.reserve.left, 400);
+  });
+
+  it('кто заплатил в сервисе, тому возвращают доли', () => {
+    const r = repairShares(accruals, [repair('r1', '2026-04-01', 200)], owners);
+    const used = r.splits.get('r1')?.shares.map((x) => ({ id: x.memberId, amount: x.amount })) ?? [];
+    const { settlements } = ledger(used, [{ paidBy: 'anya', amount: 200 }], []);
+    assert.deepEqual(settlements, [{ from: 'misha', to: 'anya', amount: 150 }]);
   });
 });

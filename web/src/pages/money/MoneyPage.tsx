@@ -18,9 +18,10 @@ import { useSession } from '@shared/model/session';
 import { Pictogram } from '@shared/ui/Pictogram';
 import { SignLink } from '@shared/ui/SignButton';
 import { RatesSection } from '@widgets/rates/RatesSection';
+import { RepairsSection } from '@widgets/repairs/RepairsSection';
 import { Topbar } from '@widgets/topbar/Topbar';
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 
 // главная цифра полосы — до копейки, без третьего знака
 const dec2 = (n: number) =>
@@ -62,7 +63,13 @@ export function MoneyPage() {
   };
 
   const perKm = m ? m.rates.amortPerKm + m.rates.fuelPerKm : 0;
-  const account = (id: string) => m?.fuel?.accounts.find((a) => a.id === id);
+  const account = (id: string) => m?.ledger?.accounts.find((a) => a.id === id);
+  const repairOf = (id: string) => m?.repairsByMember.find((r) => r.memberId === id)?.amount ?? 0;
+  // пришли из мастера ремонта (/money#repairs-title) — показать раздел
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (m && hash) document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' });
+  }, [m, hash]);
   const fuel = m ? FUEL_TYPES[m.settings.fuelType] : FUEL_TYPES.diesel;
   // откуда цена км сегодня — одной строкой под цифрой
   const bandMeta = (() => {
@@ -142,14 +149,14 @@ export function MoneyPage() {
             />
           )}
 
-          {m?.fuel && (
+          {m?.ledger && (
             <section className="section" aria-labelledby="settle-title">
               <h2 className="section__title" id="settle-title" style={{ marginBottom: 10 }}>
                 Кто кому должен
               </h2>
-              {m.fuel.settlements.length ? (
+              {m.ledger.settlements.length ? (
                 <ul className="people">
-                  {m.fuel.settlements.map((s) => (
+                  {m.ledger.settlements.map((s) => (
                     <li key={`${s.from}-${s.to}`} className="person">
                       <div className="person__row">
                         <Pictogram name="arrow" size={40} />
@@ -213,6 +220,9 @@ export function MoneyPage() {
                                 <span>амортизация {zl(x.amort)}</span>
                                 <span>топливо {zl(x.fuel)}</span>
                                 {x.extras > 0 && <span>в дороге {zl(x.extras)}</span>}
+                                {repairOf(x.memberId) > 0 && (
+                                  <span>ремонты {zl(repairOf(x.memberId))}</span>
+                                )}
                                 {a && <span>заплатил {zl(a.paid)}</span>}
                               </div>
                             </div>
@@ -271,7 +281,7 @@ export function MoneyPage() {
                     </li>
                   </ul>
                   <p className="field__hint">
-                    Амортизация копится в кассу на ремонт и износ.{' '}
+                    Амортизация — износ: копится в резерв на ремонт, из него платят за поломки.{' '}
                     {m.settings.fuelMode === 'rate'
                       ? 'Топливо в режиме «бак на бак» делят в самой поездке — здесь оно для справки.'
                       : 'Топливо и расходы в дороге — по факту: долги выше.'}{' '}
@@ -281,6 +291,8 @@ export function MoneyPage() {
               )}
             </section>
           )}
+
+          {m && <RepairsSection money={m} name={name} />}
 
           {m && <RatesSection money={m} isAdmin={!!viewer?.isAdmin} onChanged={load} />}
 
@@ -331,7 +343,7 @@ export function MoneyPage() {
             </section>
           )}
 
-          {m?.fuel && m.transfers.length > 0 && (
+          {m?.ledger && m.transfers.length > 0 && (
             <section className="section" aria-labelledby="transfers-title">
               <h2 className="section__title" id="transfers-title" style={{ marginBottom: 10 }}>
                 Переводы

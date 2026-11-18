@@ -138,13 +138,13 @@ describe('деньги', () => {
     const b = m.summary.members.find((x: { memberId: string }) => x.memberId === boris);
     assert.equal(b.guests, 2);
     assert.ok(Math.abs(b.km - 300) < 0.01);
-    const fromBoris = m.fuel.settlements.find((x: { from: string; to: string }) => x.from === boris && x.to === misha);
+    const fromBoris = m.ledger.settlements.find((x: { from: string; to: string }) => x.from === boris && x.to === misha);
     assert.ok(fromBoris, 'Борис должен Мише за топливо и парковку');
     assert.equal(fromBoris.amount, 255); // 3/4 × (300 топливо + 40 парковка)
 
     assert.equal((await post('/api/transfers', { date: '2026-12-03', fromId: boris, toId: misha, amount: 255 })).status, 200);
     const after = (await get('/api/money?year=2026')).body;
-    assert.ok(!after.fuel.settlements.some((x: { from: string | null; to: string }) => x.from === boris && x.to === misha));
+    assert.ok(!after.ledger.settlements.some((x: { from: string | null; to: string }) => x.from === boris && x.to === misha));
   });
 
   it('новая ставка с даты не меняет прошлые поездки', async () => {
@@ -153,6 +153,29 @@ describe('деньги', () => {
     const after = (await get('/api/journal?year=2026')).body.trips.find((x: { date: string }) => x.date === '2026-11-14');
     assert.equal(after.cost.amort, before.cost.amort);
     assert.equal((await post('/api/rates', { validFrom: '2026-12-16', amortPerKm: -1 })).status, 400);
+  });
+
+  it('ремонт: гасится из резерва по износу, кто платил — тому возвращают', async () => {
+    const before = (await get('/api/money?year=2026')).body;
+    const payer = (await post('/api/members', { name: 'Механик' })).body.id;
+    const r = await post('/api/repairs', { date: '2026-12-05', kind: 'repair', title: 'Отвалилась подвеска', amount: 100, paidBy: payer });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const m = (await get('/api/money?year=2026')).body;
+    const rep = m.repairs.find((x: { id: string }) => x.id === r.body.id);
+    assert.equal(rep.split.how, 'reserve');
+    assert.ok(Math.abs(rep.split.fromReserve - 100) < 0.01, 'резерва хватило');
+    assert.ok(Math.abs(m.reserve.left - (before.reserve.left - 100)) < 0.05);
+    // механик не ездил — ему отдают его 100 zł те, кто износил бус
+    const paidBack = m.ledger.settlements.filter((x: { to: string }) => x.to === payer).reduce((s: number, x: { amount: number }) => s + x.amount, 0);
+    assert.ok(Math.abs(paidBack - 100) <= 2, `вернули ${paidBack}`);
+    // по вине: вся сумма на виновнике
+    const fault = await post('/api/repairs', { date: '2026-12-06', title: 'Зеркало', amount: 50, paidBy: payer, chargedTo: payer });
+    const f = (await get('/api/money?year=2026')).body.repairs.find((x: { id: string }) => x.id === fault.body.id);
+    assert.deepEqual(f.split.shares, [{ memberId: payer, amount: 50 }]);
+    // участника с ремонтами не удалить — только отключить
+    assert.equal((await post('/api/members/delete', { id: payer })).status, 409);
+    assert.equal((await post('/api/repairs', { date: '2026-12-06', title: '', amount: 5, paidBy: null })).status, 400);
+    assert.equal((await post('/api/repairs/delete', { id: fault.body.id })).status, 200);
   });
 
   it('ставки в разумных пределах', async () => {
@@ -217,7 +240,8 @@ describe('MCP', () => {
     );
     assert.equal(init.result.serverInfo.name, 'bus');
     const tools = (await data(await mcp(2, 'tools/list'))).result.tools.map((t: { name: string }) => t.name);
-    for (const name of ['get_journal', 'list_members', 'add_trip', 'update_trip', 'delete_trip']) assert.ok(tools.includes(name), name);
+    for (const name of ['get_journal', 'list_members', 'add_trip', 'update_trip', 'delete_trip', 'add_repair', 'get_money'])
+      assert.ok(tools.includes(name), name);
   });
 
   it('записывает поездку и сообщает об ошибке человеческим текстом', async () => {

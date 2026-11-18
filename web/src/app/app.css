@@ -1786,6 +1786,63 @@ code {
 #rates-title {
   scroll-margin-top: 96px;
 }
+.fact-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 10px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+/* ремонт и ТО */
+a.text-button {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+.readout--input .num-input {
+  flex: 1;
+}
+.notice--plain {
+  background: var(--surface-2);
+}
+.reserve {
+  padding-bottom: 8px;
+}
+.reserve > .money-row {
+  border-bottom: 1px solid var(--line);
+}
+.reserve__members {
+  margin: 0;
+  padding: 4px 0 0;
+  list-style: none;
+}
+.reserve__members li {
+  display: grid;
+  grid-template-columns: minmax(0, 7em) 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.reserve__members b {
+  font-weight: 700;
+}
+.reserve__bar {
+  height: 6px;
+  background: var(--surface-2);
+}
+.reserve__bar span {
+  display: block;
+  height: 100%;
+  background: var(--sign-black);
+}
+.reserve + .feed {
+  margin-top: 8px;
+}
 .issue-row__action {
   display: inline-block;
   margin-top: 6px;

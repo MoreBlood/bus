@@ -162,6 +162,10 @@ export function createApp({ service, auth }: { service: Service; auth: Auth | nu
   api.post('/refuels', async (c) => c.json(await service.createRefuel(c.get('viewer'), await body(c))));
   api.post('/refuels/update', async (c) => c.json(await service.updateRefuel(c.get('viewer'), await body(c))));
   api.post('/refuels/delete', async (c) => c.json(await service.deleteRefuel(c.get('viewer'), (await body(c)).id)));
+  api.get('/repairs/:id', async (c) => c.json(await service.repair(c.req.param('id'))));
+  api.post('/repairs', async (c) => c.json(await service.createRepair(c.get('viewer'), await body(c))));
+  api.post('/repairs/update', async (c) => c.json(await service.updateRepair(c.get('viewer'), await body(c))));
+  api.post('/repairs/delete', async (c) => c.json(await service.deleteRepair(c.get('viewer'), (await body(c)).id)));
   api.post('/transfers', async (c) => c.json(await service.createTransfer(c.get('viewer'), await body(c))));
   api.post('/transfers/delete', async (c) => c.json(await service.deleteTransfer(c.get('viewer'), (await body(c)).id)));
 

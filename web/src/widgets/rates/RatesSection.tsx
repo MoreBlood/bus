@@ -55,6 +55,7 @@ export function RatesSection({
         <PeriodEditor
           current={current}
           settings={m.settings}
+          fact={m.fact}
           onSaved={done}
           onCancel={() => setEditing(null)}
         />

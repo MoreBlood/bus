@@ -3,6 +3,7 @@ import type { Db } from '../db/index.ts';
 import * as assistantSvc from './assistant.ts';
 import * as moneySvc from './money.ts';
 import * as oauthClientsSvc from './oauth-clients.ts';
+import * as repairsSvc from './repairs.ts';
 import * as settingsSvc from './settings.ts';
 import * as membersSvc from './members.ts';
 import type { Viewer } from './members.ts';
@@ -28,7 +29,7 @@ export function createService(db: Db) {
     updateTrip: (v: Viewer, b: unknown) => tripsSvc.updateTrip(db, v, b),
     deleteTrip: (v: Viewer, id: unknown) => tripsSvc.deleteTrip(db, v, id),
 
-    // деньги: ставки, заправки, переводы
+    // деньги: ставки, заправки, ремонт и ТО, переводы
     money: (year?: string) => moneySvc.money(db, year),
     settings: () => settingsSvc.getSettings(db),
     saveSettings: (v: Viewer, b: unknown) => settingsSvc.saveSettings(db, v, b),
@@ -38,6 +39,10 @@ export function createService(db: Db) {
     createRefuel: (v: Viewer, b: unknown) => moneySvc.createRefuel(db, v, b),
     updateRefuel: (v: Viewer, b: unknown) => moneySvc.updateRefuel(db, v, b),
     deleteRefuel: (v: Viewer, id: unknown) => moneySvc.deleteRefuel(db, v, id),
+    repair: (id: string) => repairsSvc.getRepair(db, id),
+    createRepair: (v: Viewer, b: unknown) => repairsSvc.createRepair(db, v, b),
+    updateRepair: (v: Viewer, b: unknown) => repairsSvc.updateRepair(db, v, b),
+    deleteRepair: (v: Viewer, id: unknown) => repairsSvc.deleteRepair(db, v, id),
     createTransfer: (v: Viewer, b: unknown) => moneySvc.createTransfer(db, v, b),
     deleteTransfer: (v: Viewer, id: unknown) => moneySvc.deleteTransfer(db, v, id),
 
