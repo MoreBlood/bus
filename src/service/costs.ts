@@ -363,11 +363,14 @@ export function fuelLedger(
     return { ...a, paid: round2(a.paid), used: round2(a.used), balance };
   });
 
-  // жадно: самый большой долг гасим самому большому кредитору; мелочь до 1 zł не гоняем
+  // жадно: самый большой долг гасим самому большому кредитору; мелочь до 1 zł не гоняем.
+  // Касса — последней: сумма балансов не ноль (бак, неучтённые км), и люди должны рассчитаться между собой
   const debtors = accounts.filter((a) => a.balance <= -1).map((a) => ({ id: a.id, left: -a.balance }));
   const creditors = accounts.filter((a) => a.balance >= 1).map((a) => ({ id: a.id, left: a.balance }));
-  debtors.sort((a, b) => b.left - a.left);
-  creditors.sort((a, b) => b.left - a.left);
+  const order = (a: { id: string | null; left: number }, b: { id: string | null; left: number }) =>
+    Number(a.id === null) - Number(b.id === null) || b.left - a.left;
+  debtors.sort(order);
+  creditors.sort(order);
   const settlements: Settlement[] = [];
   for (const d of debtors)
     for (const c of creditors) {

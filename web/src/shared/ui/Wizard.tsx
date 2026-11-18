@@ -49,17 +49,7 @@ export function Stepper({
         disabled={value <= 0}
         onClick={() => onChange(Math.max(0, value - 1))}
       >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={3}
-          aria-hidden
-        >
-          <path d="M5 12h14" />
-        </svg>
+        <Glyph name="minus" size={18} />
       </button>
       <output aria-live="polite">{value}</output>
       <button

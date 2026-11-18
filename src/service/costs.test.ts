@@ -144,6 +144,20 @@ describe('moneySummary и fuelLedger', () => {
   });
 });
 
+describe('порядок переводов', () => {
+  it('сначала рассчитываются люди, касса — последней', () => {
+    const s = moneySummary([trip({ km: 100, riders: [{ memberId: 'misha', guests: 0 }] })].map((t) => ({ ...t, cost: tripCost(t, { amortPerKm: 0, fuelPerKm: 1 }) })), {
+      km: 500,
+      cost: 500,
+      fuel: 500,
+    });
+    // Аня заплатила 300; касса «должна» 500 за неучтённые км, Миша — 100 за свою поездку
+    const { settlements } = fuelLedger(s, [{ paidBy: 'anya', amount: 300 }], []);
+    assert.deepEqual(settlements[0], { from: 'misha', to: 'anya', amount: 100 });
+    assert.deepEqual(settlements[1], { from: null, to: 'anya', amount: 200 });
+  });
+});
+
 describe('помощник амортизации', () => {
   it('сумма статей в год / км в год', () => {
     const rate = amortFromBasis({

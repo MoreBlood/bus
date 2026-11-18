@@ -636,6 +636,15 @@ a {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
+.who-all {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 15px;
+  color: var(--ink-3);
+}
 .who__option {
   position: relative;
   display: flex;
@@ -1434,6 +1443,7 @@ code {
   justify-content: space-between;
   gap: 12px;
   min-height: 60px;
+  padding: 6px 0;
   border-bottom: 1px solid var(--line);
 }
 .guests-list b {
@@ -1555,6 +1565,233 @@ code {
   line-height: 1.45;
   color: #e3e3e3;
 }
+/* «Как посчитано» — формула поездки строками, внутри чёрной таблички */
+.explain {
+  margin-top: 14px;
+  border-top: 1px solid #3a3a3a;
+}
+.explain summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--sign-yellow);
+  cursor: pointer;
+  list-style: none;
+}
+.explain summary::-webkit-details-marker {
+  display: none;
+}
+.explain summary:focus-visible {
+  outline: 3px solid var(--sign-yellow);
+  outline-offset: 2px;
+}
+.explain__rows {
+  margin: 0;
+}
+.explain__rows > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid #3a3a3a;
+}
+.explain__rows dt {
+  font-size: 14px;
+  color: #bdbdbd;
+}
+.explain__rows dd {
+  grid-column: 1;
+  margin: 2px 0 0;
+  font-size: 16px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.explain__rows b {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.explain__rows p {
+  grid-column: 1 / -1;
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #cfcfcf;
+}
+.explain__rows .explain__total {
+  border-top: 2px solid #ffffff;
+}
+.explain__total dt {
+  align-self: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+}
+.explain__total b {
+  grid-row: 1;
+  color: var(--sign-yellow);
+}
+.explain__split {
+  margin: 4px 0 6px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #e3e3e3;
+}
+
+/* «сам не ехал» — квадратный флажок под именем владельца */
+.absent-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 600 14px / 1.2 var(--font);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.absent-toggle__box {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: var(--frame);
+  background: #ffffff;
+}
+.absent-toggle[aria-pressed="true"] {
+  color: var(--ink);
+}
+.absent-toggle[aria-pressed="true"] .absent-toggle__box {
+  background: var(--sign-black);
+  color: #ffffff;
+}
+.absent-toggle:focus-visible {
+  outline: 3px solid var(--sign-black);
+  outline-offset: 2px;
+}
+
+/* расходы в дороге — раскрываются под строкой проверки */
+.extras-editor {
+  padding: 14px 0 4px;
+  border-bottom: 1px solid var(--line);
+}
+.extras-editor .text-input {
+  height: 56px;
+}
+.field__hint--error {
+  color: var(--danger-ink, #5c1009);
+}
+/* ставки и их правка */
+.who--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.person__row--plain {
+  grid-template-columns: 1fr auto;
+}
+.person__name .tag {
+  margin-left: 8px;
+  vertical-align: 2px;
+}
+.field-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.field-row .inline-link {
+  min-height: 44px;
+  font-size: 15px;
+}
+.editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.editor-actions > :first-child {
+  flex: 1;
+  max-width: 360px;
+}
+.amort-helper {
+  margin-top: 12px;
+  padding: 4px 14px 14px;
+  background: var(--surface-2);
+}
+.amort-helper__items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.amort-helper__items li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #cfcfcf;
+  font-size: 15px;
+  font-weight: 600;
+}
+.amort-helper__input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.amort-helper__input small {
+  width: 64px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.num-input--sm {
+  width: 110px;
+  height: 44px;
+  font-size: 18px;
+  text-align: right;
+}
+.amort-helper__result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-top: 12px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.amort-helper__result b {
+  font-weight: 800;
+}
+.tanks {
+  margin-top: 24px;
+}
+.tanks__title {
+  margin: 0 0 10px;
+  font-size: 17px;
+  font-weight: 700;
+}
+.band-link {
+  color: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+#rates-title {
+  scroll-margin-top: 96px;
+}
+.issue-row__action {
+  display: inline-block;
+  margin-top: 6px;
+  min-height: 32px;
+  font-size: 15px;
+}
 .wordmark--button {
   padding: 0;
   border: 0;
@@ -1601,6 +1838,10 @@ code {
   .money-cta {
     display: none;
   }
+}
+/* открыт редактор — у него своя главная кнопка, вторая жёлтая внизу только мешает */
+body:has(.person__editor) .dock__cta {
+  display: none;
 }
 
 /* нижняя навигация на телефоне: четыре раздела — знак над подписью */

@@ -180,6 +180,8 @@ export interface Journal {
   rates: TripRates;
   settings: CostSettings;
   periods: RatePeriod[];
+  /** отрезки между полными баками (все годы) */
+  intervals: FuelInterval[];
   issues: OdometerIssue[];
   lastOdometer: { km: number; date: string } | null;
 }

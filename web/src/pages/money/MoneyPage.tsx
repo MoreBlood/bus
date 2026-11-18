@@ -1,113 +1,32 @@
 // Деньги буса: сколько стоит километр, кто сколько должен за год, ставки, заправки и переводы.
-import { SegmentedControl, Select } from '@radix-ui/themes';
+import { Select } from '@radix-ui/themes';
+import { createTransfer, deleteTransfer, errorText, fetchMoney } from '@shared/api/client';
+import type { FuelMode, Money } from '@shared/api/types';
+import { FUEL_TYPES, periodFor } from '@shared/lib/cost';
 import {
-  createTransfer,
-  deleteTransfer,
-  errorText,
-  fetchMoney,
-  saveSettings,
-} from '@shared/api/client';
-import type { CostSettings, FuelMode, Money } from '@shared/api/types';
-import { daysFrac, dec, guestsLabel, num, shortDate, today, zl, zlRate } from '@shared/lib/format';
+  daysFrac,
+  dec,
+  guestsLabel,
+  longDate,
+  num,
+  shortDate,
+  today,
+  zl,
+  zlRate,
+} from '@shared/lib/format';
 import { useSession } from '@shared/model/session';
 import { Pictogram } from '@shared/ui/Pictogram';
-import { SignButton, SignLink } from '@shared/ui/SignButton';
+import { SignLink } from '@shared/ui/SignButton';
+import { RatesSection } from '@widgets/rates/RatesSection';
 import { Topbar } from '@widgets/topbar/Topbar';
-import { type FormEvent, useCallback, useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
-const MODE_LABEL: Record<FuelMode, string> = { rate: 'Бак на бак', refuels: 'Учёт заправок' };
+// главная цифра полосы — до копейки, без третьего знака
+const dec2 = (n: number) =>
+  new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
-function RatesEditor({ settings, onSaved }: { settings: CostSettings; onSaved: () => void }) {
-  const ids = { amort: useId(), per100: useId(), price: useId() };
-  const [amort, setAmort] = useState(String(settings.amortPerKm));
-  const [per100, setPer100] = useState(String(settings.fuelPer100));
-  const [price, setPrice] = useState(String(settings.fuelPrice));
-  const [mode, setMode] = useState<FuelMode>(settings.fuelMode);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const n = (s: string) => Number(s.replace(',', '.'));
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await saveSettings({
-        amortPerKm: n(amort),
-        fuelPer100: n(per100),
-        fuelPrice: n(price),
-        fuelMode: mode,
-      });
-      onSaved();
-    } catch (err) {
-      setError(errorText(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <form className="person__editor" onSubmit={submit}>
-      <div>
-        <span className="field__label">Бензин считаем</span>
-        <SegmentedControl.Root
-          size="3"
-          value={mode}
-          onValueChange={(v) => setMode(v as FuelMode)}
-          style={{ width: '100%' }}
-        >
-          <SegmentedControl.Item value="rate">Бак на бак</SegmentedControl.Item>
-          <SegmentedControl.Item value="refuels">Учёт заправок</SegmentedControl.Item>
-        </SegmentedControl.Root>
-        <p className="field__hint">
-          {mode === 'rate'
-            ? 'Бус возвращают с тем же уровнем топлива; бензин делят в поездке по ставке.'
-            : 'Заправки записываются; бензин — по факту, кто платил на кассе, тому возвращают.'}
-        </p>
-      </div>
-      <div className="odo-pair" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
-        <div>
-          <label htmlFor={ids.amort}>Амортизация, zł/км</label>
-          <input
-            id={ids.amort}
-            className="num-input"
-            inputMode="decimal"
-            value={amort}
-            onChange={(e) => setAmort(e.target.value)}
-          />
-        </div>
-        <div>
-          <label htmlFor={ids.per100}>Расход, л/100</label>
-          <input
-            id={ids.per100}
-            className="num-input"
-            inputMode="decimal"
-            value={per100}
-            onChange={(e) => setPer100(e.target.value)}
-          />
-        </div>
-        <div>
-          <label htmlFor={ids.price}>Литр, zł</label>
-          <input
-            id={ids.price}
-            className="num-input"
-            inputMode="decimal"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-          />
-        </div>
-      </div>
-      {error && (
-        <div className="notice notice--error" role="alert">
-          <Pictogram name="warning" size={32} />
-          <span>{error}</span>
-        </div>
-      )}
-      <SignButton type="submit" size="md" loading={busy}>
-        Сохранить ставки
-      </SignButton>
-    </form>
-  );
-}
+const MODE_LABEL: Record<FuelMode, string> = { rate: 'бак на бак', refuels: 'учёт заправок' };
 
 export function MoneyPage() {
   const [params, setParams] = useSearchParams();
@@ -115,7 +34,6 @@ export function MoneyPage() {
   const { memberById, viewer } = useSession();
   const [m, setM] = useState<Money | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
   const [paying, setPaying] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -145,6 +63,18 @@ export function MoneyPage() {
 
   const perKm = m ? m.rates.amortPerKm + m.rates.fuelPerKm : 0;
   const account = (id: string) => m?.fuel?.accounts.find((a) => a.id === id);
+  const fuel = m ? FUEL_TYPES[m.settings.fuelType] : FUEL_TYPES.diesel;
+  // откуда цена км сегодня — одной строкой под цифрой
+  const bandMeta = (() => {
+    if (!m) return '\u00a0';
+    const r = m.rates;
+    const from = periodFor(m.periods, today()).validFrom;
+    const fuelPart =
+      r.source === 'period'
+        ? `${dec(r.per100)} ${fuel.unit}/100 × ${zlRate(r.unitPrice)}`
+        : 'по последнему полному баку';
+    return `амортизация ${zlRate(r.amortPerKm)} + топливо ${zlRate(r.fuelPerKm)} (${fuel.label.toLowerCase()}, ${fuelPart}) · ${MODE_LABEL[m.settings.fuelMode]}${from > '2000-01-01' ? ` · ставки с ${longDate(from)}` : ''}`;
+  })();
 
   return (
     <>
@@ -172,17 +102,19 @@ export function MoneyPage() {
             <Pictogram name="pump" size={48} />
             <span className="odo-sign__label">Километр стоит</span>
             <span className="odo-sign__value">
-              {m ? zlRate(perKm).replace(' zł', '') : '0,00'}
+              {m ? dec2(perKm) : '0,00'}
               <span className="odo-sign__unit">zł</span>
             </span>
             <span className="odo-sign__meta">
-              {m
-                ? `амортизация ${zlRate(m.rates.amortPerKm)} + бензин ${zlRate(m.rates.fuelPerKm)}${
-                    m.rates.fuelSource === 'refuels'
-                      ? ' по заправкам'
-                      : ` (${dec(m.settings.fuelPer100)} л/100 км × ${zlRate(m.settings.fuelPrice)})`
-                  } · ${MODE_LABEL[m.settings.fuelMode].toLowerCase()}`
-                : ' '}
+              {bandMeta}
+              {m && (
+                <>
+                  {' · '}
+                  <a className="band-link" href="#rates-title">
+                    как посчитано
+                  </a>
+                </>
+              )}
             </span>
           </div>
           <div className="band__cta">
@@ -213,7 +145,7 @@ export function MoneyPage() {
           {m?.fuel && (
             <section className="section" aria-labelledby="settle-title">
               <h2 className="section__title" id="settle-title" style={{ marginBottom: 10 }}>
-                Кто кому должен за бензин
+                Кто кому должен
               </h2>
               {m.fuel.settlements.length ? (
                 <ul className="people">
@@ -279,12 +211,13 @@ export function MoneyPage() {
                               </div>
                               <div className="person__meta">
                                 <span>амортизация {zl(x.amort)}</span>
-                                <span>бензин {zl(x.fuel)}</span>
+                                <span>топливо {zl(x.fuel)}</span>
+                                {x.extras > 0 && <span>в дороге {zl(x.extras)}</span>}
                                 {a && <span>заплатил {zl(a.paid)}</span>}
                               </div>
                             </div>
                             <div className="money-row__sum">
-                              <b>{zl(x.amort + x.fuel)}</b>
+                              <b>{zl(x.amort + x.fuel + x.extras)}</b>
                               {a && Math.abs(a.balance) >= 1 && (
                                 <small className={a.balance > 0 ? 'is-plus' : 'is-minus'}>
                                   {a.balance > 0
@@ -304,11 +237,35 @@ export function MoneyPage() {
                           <div className="person__meta">
                             <span>{num(m.summary.fund.km)} км</span>
                             <span>амортизация {zl(m.summary.fund.amort)}</span>
-                            <span>бензин {zl(m.summary.fund.fuel)}</span>
+                            <span>топливо {zl(m.summary.fund.fuel)}</span>
+                            {m.summary.fund.extras > 0 && (
+                              <span>в дороге {zl(m.summary.fund.extras)}</span>
+                            )}
                           </div>
+                          {m.summary.fund.unrecordedKm > 0 && (
+                            <div className="person__meta">
+                              <span>
+                                и {num(m.summary.fund.unrecordedKm)} км никто не записал —{' '}
+                                {zl(m.summary.fund.unrecorded)}
+                              </span>
+                              <Link
+                                className="inline-link"
+                                to={m.year === m.years[0] ? '/' : `/?year=${m.year}`}
+                              >
+                                к разрывам
+                              </Link>
+                            </div>
+                          )}
                         </div>
                         <div className="money-row__sum">
-                          <b>{zl(m.summary.fund.amort + m.summary.fund.fuel)}</b>
+                          <b>
+                            {zl(
+                              m.summary.fund.amort +
+                                m.summary.fund.fuel +
+                                m.summary.fund.extras +
+                                m.summary.fund.unrecorded,
+                            )}
+                          </b>
                         </div>
                       </div>
                     </li>
@@ -316,60 +273,16 @@ export function MoneyPage() {
                   <p className="field__hint">
                     Амортизация копится в кассу на ремонт и износ.{' '}
                     {m.settings.fuelMode === 'rate'
-                      ? 'Бензин в режиме «бак на бак» делят в самой поездке — здесь он для справки.'
-                      : 'Бензин — по заправкам: долги выше.'}
+                      ? 'Топливо в режиме «бак на бак» делят в самой поездке — здесь оно для справки.'
+                      : 'Топливо и расходы в дороге — по факту: долги выше.'}{' '}
+                    Км, которые никто не записал, везёт касса, пока их не запишут поездкой.
                   </p>
                 </>
               )}
             </section>
           )}
 
-          {m && (
-            <section className="section" aria-labelledby="rates-title">
-              <div className="section__head">
-                <h2 className="section__title" id="rates-title">
-                  Ставки
-                </h2>
-                {viewer?.isAdmin && !editing && (
-                  <button type="button" className="text-button" onClick={() => setEditing(true)}>
-                    Изменить
-                  </button>
-                )}
-              </div>
-              {editing ? (
-                <RatesEditor
-                  settings={m.settings}
-                  onSaved={() => {
-                    setEditing(false);
-                    load();
-                  }}
-                />
-              ) : (
-                <dl className="review">
-                  <div>
-                    <dt>Амортизация</dt>
-                    <dd>{zlRate(m.settings.amortPerKm)} за км</dd>
-                  </div>
-                  <div>
-                    <dt>Бензин по ставке</dt>
-                    <dd>
-                      {dec(m.settings.fuelPer100)} л/100 км × {zlRate(m.settings.fuelPrice)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Режим</dt>
-                    <dd>{MODE_LABEL[m.settings.fuelMode]}</dd>
-                  </div>
-                  {m.consumption && (
-                    <div>
-                      <dt>Расход по заправкам</dt>
-                      <dd>{dec(m.consumption)} л/100 км</dd>
-                    </div>
-                  )}
-                </dl>
-              )}
-            </section>
-          )}
+          {m && <RatesSection money={m} isAdmin={!!viewer?.isAdmin} onChanged={load} />}
 
           {m && (
             <section className="section" aria-labelledby="refuels-title">
@@ -387,7 +300,7 @@ export function MoneyPage() {
                         <Pictogram name="pump" size={40} />
                         <span className="trip-row__main">
                           <span className="trip-row__title">
-                            {dec(r.liters)} л · {name(r.paidBy)}
+                            {dec(r.liters)} {fuel.unit} · {name(r.paidBy)}
                             {r.createdBy === 'demo' && (
                               <>
                                 {' '}
@@ -396,7 +309,7 @@ export function MoneyPage() {
                             )}
                           </span>
                           <span className="trip-row__meta">
-                            {shortDate(r.date)} · {zlRate(r.amount / r.liters)}/л
+                            {shortDate(r.date)} · {zlRate(r.amount / r.liters)}/{fuel.unit}
                             {r.odometer ? ` · ${num(r.odometer)} км` : ''}
                             {r.full ? ' · полный бак' : ''}
                           </span>

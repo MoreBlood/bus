@@ -63,12 +63,13 @@ export const days = (n: number) => `${n} ${plural(n, 'день', 'дня', 'д�
 export const daysShort = (n: number) => `${n} дн`;
 
 const zlInt = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
-const zl2 = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// ставки бывают точнее копейки (0,304 zł/км из помощника) — до трёх знаков
+const zl2 = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
 const dec1 = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 });
 
 /** 1240.4 → «1 240 zł» */
 export const zl = (n: number) => `${zlInt.format(Math.abs(n) < 0.5 ? 0 : n)}\u00a0zł`;
-/** ставка: 0.3 → «0,30 zł» */
+/** ставка: 0.3 → «0,30 zł», 0.304 → «0,304 zł» */
 export const zlRate = (n: number) => `${zl2.format(n)}\u00a0zł`;
 /** дни бывают дробными (день делится между владельцами): 4.5 → «4,5 дн» */
 export const daysFrac = (n: number) => `${dec1.format(n)}\u00a0дн`;

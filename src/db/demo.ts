@@ -6,29 +6,39 @@ import { members, refuels, tripRiders, trips } from './schema.ts';
 
 const NAMES = ['Миша', 'Аня', 'Дима', 'Оля', 'Костя', 'Лёша', 'Женя', 'Ваня', 'Саша'];
 
-// [дата, конец, кто ехал ([участник, гостей]…; null — по делам буса), км или [до, после], заметка]
-type Row = [string, string | null, [number, number][] | null, number | [number, number], string];
+// [дата, конец, кто ехал ([участник, гостей, сам не ехал?]…; null — по делам буса), км или [до, после], заметка,
+//  расходы в дороге [zł, кто платил (null — вскладчину), за что]]
+type Who = [number, number, boolean?];
+type Extras = [number, number | null, string];
+type Row = [string, string | null, Who[] | null, number | [number, number], string, Extras?];
 const ROWS: Row[] = [
-  ['2026-03-14', '2026-03-15', [[0, 0]], [176020, 176412], 'Варшава → Закопане'],
+  ['2026-03-14', '2026-03-15', [[0, 0]], [176020, 176412], 'Варшава → Закопане', [60, null, 'парковка']],
   ['2026-04-05', null, null, [176412, 176455], 'Техосмотр, Пясечно'],
   ['2026-05-01', '2026-05-03', [[1, 2], [3, 0]], [176455, 177310], 'Мазуры, озёра'],
   ['2026-06-12', null, [[2, 0]], 64, 'Перевозка мебели'],
-  ['2026-07-18', '2026-07-26', [[0, 1], [1, 0], [4, 0]], [177374, 179714], 'Хорватия, отпуск'],
+  ['2026-07-18', '2026-07-26', [[0, 1], [1, 0], [4, 0]], [177374, 179714], 'Хорватия, отпуск', [380, 0, 'платные дороги']],
   ['2026-08-30', null, [[3, 0]], [179714, 180124], 'Варшава → Познань'],
   ['2026-09-20', null, [[4, 3]], [180124, 180404], 'Фестиваль под Лодзью'],
   ['2026-10-27', null, [[2, 0]], [180404, 180470], 'Переезд друга'],
+  ['2026-10-31', null, [[3, 2, true]], 120, 'Друзья Оли на свадьбу'],
   ['2026-11-02', '2026-11-03', [[1, 0], [0, 0]], [180470, 181153], 'Варшава → Гданьск и обратно'],
   ['2026-11-09', null, null, [181153, 181195], 'СТО в Пясечно, замена масла'],
   ['2026-11-14', null, [[0, 2]], [181232, 181500], 'Варшава → Казимеж-Дольны'],
 ];
 
-// [дата, кто платил (индекс; null — касса), литры, сумма zł, одометр]
-const REFUELS: [string, number | null, number, number, number][] = [
-  ['2026-05-01', 1, 62, 403, 176460],
-  ['2026-07-18', 0, 70, 469, 177380],
-  ['2026-07-23', 4, 68, 452, 178600],
-  ['2026-09-20', 4, 55, 363, 180130],
-  ['2026-11-09', null, 48, 312, 181160],
+// [дата, кто платил (индекс; null — касса), литры, сумма zł, одометр, до полного?]
+// Расход ~11 л/100 км, как у дизельного буса; одна заправка не до полного — она входит в следующий бак.
+const REFUELS: [string, number | null, number, number, number, boolean][] = [
+  ['2026-03-14', 0, 55, 358, 176020, true],
+  ['2026-05-01', 1, 48, 312, 176460, true],
+  ['2026-05-03', 3, 64, 416, 177050, true],
+  ['2026-07-18', 0, 36, 236, 177380, true],
+  ['2026-07-20', 4, 79, 529, 178100, true],
+  ['2026-07-23', 1, 80, 548, 178850, true],
+  ['2026-07-26', 0, 81, 540, 179600, true],
+  ['2026-09-20', 4, 57, 371, 180130, true],
+  ['2026-11-02', 1, 30, 196, 180700, false],
+  ['2026-11-09', null, 81, 527, 181160, true],
 ];
 const LAST = '2026-11-14';
 
@@ -45,7 +55,7 @@ export async function seedDemo(db: Db, today = new Date()) {
   await db.insert(members).values(NAMES.map((name, i) => ({ id: ids[i], name, sort: i + 1, isAdmin: i === 0 })));
   const tripIds = ROWS.map(() => randomUUID());
   await db.insert(trips).values(
-    ROWS.map(([date, endDate, who, dist, note], i) => ({
+    ROWS.map(([date, endDate, who, dist, note, extras], i) => ({
       id: tripIds[i],
       date: shift(date, offset),
       endDate: endDate && shift(endDate, offset),
@@ -54,21 +64,26 @@ export async function seedDemo(db: Db, today = new Date()) {
       odoStart: Array.isArray(dist) ? dist[0] : null,
       odoEnd: Array.isArray(dist) ? dist[1] : null,
       note,
+      extrasAmount: extras ? extras[0] * 100 : 0,
+      extrasPaidBy: extras && extras[1] !== null ? ids[extras[1]] : null,
+      extrasNote: extras ? extras[2] : '',
       createdBy: 'demo',
     })),
   );
-  await db
-    .insert(tripRiders)
-    .values(ROWS.flatMap(([, , who], i) => (who ?? []).map(([m, guests]) => ({ tripId: tripIds[i], memberId: ids[m], guests }))));
+  await db.insert(tripRiders).values(
+    ROWS.flatMap(([, , who], i) =>
+      (who ?? []).map(([m, guests, absent]) => ({ tripId: tripIds[i], memberId: ids[m], guests, absent: !!absent })),
+    ),
+  );
   await db.insert(refuels).values(
-    REFUELS.map(([date, who, liters, zl, odometer]) => ({
+    REFUELS.map(([date, who, liters, zl, odometer, full]) => ({
       id: randomUUID(),
       date: shift(date, offset),
       paidBy: who === null ? null : ids[who],
       liters,
       amount: zl * 100,
       odometer,
-      full: true,
+      full,
       createdBy: 'demo',
     })),
   );

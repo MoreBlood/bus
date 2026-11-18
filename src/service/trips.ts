@@ -138,6 +138,8 @@ export interface Journal {
   rates: TripRates;
   settings: CostSettings;
   periods: RatePeriod[];
+  /** отрезки между полными баками (все) — для объяснения топлива поездки */
+  intervals: FuelInterval[];
   /** разрывы и пересечения одометра, относящиеся к этому году */
   issues: OdometerIssue[];
   /** последнее показание одометра за всё время — подставляется в новую поездку */
@@ -215,6 +217,7 @@ export async function journal(db: Db, year = currentYear()): Promise<Journal> {
     rates: ctx.ratesOf({ date: today, odoStart: null, odoEnd: null }),
     settings: ctx.settings,
     periods: ctx.periods,
+    intervals: ctx.intervals,
     issues,
     lastOdometer: lastOdometer(all),
   };
