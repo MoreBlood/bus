@@ -35,6 +35,7 @@ export function createApp({ service, auth }: { service: Service; auth: Auth | nu
       const host = (c.req.header('x-forwarded-host') ?? c.req.header('host') ?? '').split(',')[0].trim();
       if (host === canonical.host) return next();
       const url = new URL(c.req.url);
+      url.searchParams.delete('path'); // служебный параметр rewrite Vercel (/api/:path* → /api?path=…)
       if (c.req.method === 'GET' || c.req.method === 'HEAD') return c.redirect(`${canonical.origin}${url.pathname}${url.search}`, 308);
       return c.json({ error: `Используйте ${canonical.origin}` }, 421);
     });
