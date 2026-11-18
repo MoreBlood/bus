@@ -1,4 +1,15 @@
-import type { Journal, Member, MemberInput, Setup, TripInput, Viewer } from './types';
+import type {
+  CostSettings,
+  Journal,
+  Member,
+  MemberInput,
+  Money,
+  Refuel,
+  RefuelInput,
+  Setup,
+  TripInput,
+  Viewer,
+} from './types';
 
 export class ApiError extends Error {
   constructor(
@@ -68,3 +79,21 @@ export interface AssistantStatus {
   connections: { clientId: string; name: string; since: string | null }[];
 }
 export const fetchAssistant = () => get<AssistantStatus>('/api/assistant');
+
+// --- деньги ---
+export const fetchMoney = (year?: string) =>
+  get<Money>(year ? `/api/money?year=${year}` : '/api/money');
+export const saveSettings = (b: Partial<CostSettings>) => post<CostSettings>('/api/settings', b);
+export const fetchRefuel = (id: string) => get<Refuel>(`/api/refuels/${id}`);
+export const createRefuel = (b: RefuelInput) => post<{ id: string }>('/api/refuels', b);
+export const updateRefuel = (id: string, b: RefuelInput) =>
+  post<{ ok: boolean }>('/api/refuels/update', { id, ...b });
+export const deleteRefuel = (id: string) => post<{ ok: boolean }>('/api/refuels/delete', { id });
+export const createTransfer = (b: {
+  date: string;
+  fromId: string | null;
+  toId: string | null;
+  amount: number;
+}) => post<{ id: string }>('/api/transfers', b);
+export const deleteTransfer = (id: string) =>
+  post<{ ok: boolean }>('/api/transfers/delete', { id });

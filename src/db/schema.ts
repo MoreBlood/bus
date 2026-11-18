@@ -1,7 +1,7 @@
 // Схема данных (Drizzle). Даты — 'YYYY-MM-DD', пробег и одометр — целые километры.
 // Имена колонок — snake_case (casing в drizzle.config.ts и при создании клиента).
 import { sql } from 'drizzle-orm';
-import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 const now = sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`;
 
@@ -32,7 +32,8 @@ export const members = sqliteTable(
 );
 
 /**
- * Поездка в бортжурнале. memberId = null — общая поездка (по общим делам).
+ * Поездка в бортжурнале. Кто ехал — в trip_riders (владельцы и их гости); shared — по делам буса
+ * (ТО, мойка, перегон): её стоимость не попадает в личные счета, её несёт общая касса.
  * Пробег — либо по одометру (odoStart/odoEnd, km = разница), либо введён вручную (одометр пустой).
  */
 export const trips = sqliteTable(
@@ -43,6 +44,11 @@ export const trips = sqliteTable(
     date: text().notNull(),
     /** день возвращения, если поездка на несколько дней; null — в тот же день */
     endDate: text(),
+    shared: integer({ mode: 'boolean' }).notNull().default(false),
+    /**
+     * Устарело: до участников в trip_riders тут был единственный ездивший. Данные перенесены миграцией 0002;
+     * колонку не удаляем — пересоздание таблицы в SQLite рискует каскадом стереть trip_riders.
+     */
     memberId: text().references(() => members.id),
     km: integer().notNull(),
     odoStart: integer(),
@@ -54,12 +60,73 @@ export const trips = sqliteTable(
     createdAt: text().notNull().default(now),
     updatedAt: text(),
   },
+  (t) => [index('trips_date').on(t.date), check('trips_km_positive', sql`${t.km} > 0`)],
+);
+
+/** Владельцы в поездке. guests — гости, которых он позвал: их доля записывается на него. */
+export const tripRiders = sqliteTable(
+  'trip_riders',
+  {
+    tripId: text()
+      .notNull()
+      .references(() => trips.id, { onDelete: 'cascade' }),
+    memberId: text()
+      .notNull()
+      .references(() => members.id),
+    guests: integer().notNull().default(0),
+  },
   (t) => [
-    index('trips_date').on(t.date),
-    index('trips_member').on(t.memberId, t.date),
-    check('trips_km_positive', sql`${t.km} > 0`),
+    primaryKey({ columns: [t.tripId, t.memberId] }),
+    index('trip_riders_member').on(t.memberId),
+    check('trip_riders_guests', sql`${t.guests} >= 0`),
   ],
 );
 
+/** Заправка. Сумма — в грошах. paidBy = null — заплачено из общей кассы. */
+export const refuels = sqliteTable(
+  'refuels',
+  {
+    id: text().primaryKey(),
+    date: text().notNull(),
+    odometer: integer(),
+    liters: real().notNull(),
+    amount: integer().notNull(),
+    paidBy: text().references(() => members.id),
+    /** до полного бака — по таким заправкам считается фактический расход */
+    full: integer({ mode: 'boolean' }).notNull().default(true),
+    note: text().notNull().default(''),
+    createdBy: text(),
+    updatedBy: text(),
+    createdAt: text().notNull().default(now),
+    updatedAt: text(),
+  },
+  (t) => [index('refuels_date').on(t.date), check('refuels_positive', sql`${t.liters} > 0 AND ${t.amount} > 0`)],
+);
+
+/** Перевод между участниками (или с общей кассой, null) — закрывает долги за бензин. Сумма — в грошах. */
+export const transfers = sqliteTable(
+  'transfers',
+  {
+    id: text().primaryKey(),
+    date: text().notNull(),
+    fromId: text().references(() => members.id),
+    toId: text().references(() => members.id),
+    amount: integer().notNull(),
+    note: text().notNull().default(''),
+    createdBy: text(),
+    createdAt: text().notNull().default(now),
+  },
+  (t) => [index('transfers_date').on(t.date), check('transfers_positive', sql`${t.amount} > 0`)],
+);
+
+/** Настройки расчёта (ставки, режим бензина) — JSON по ключу. */
+export const settings = sqliteTable('settings', {
+  key: text().primaryKey(),
+  value: text({ mode: 'json' }).notNull(),
+});
+
 export type Member = typeof members.$inferSelect;
 export type Trip = typeof trips.$inferSelect;
+export type TripRider = typeof tripRiders.$inferSelect;
+export type Refuel = typeof refuels.$inferSelect;
+export type Transfer = typeof transfers.$inferSelect;

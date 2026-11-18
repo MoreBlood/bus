@@ -1337,3 +1337,284 @@ code {
   font-size: 14px;
   color: var(--ink-3);
 }
+
+/* ─── пошаговые мастера ───────────────────────────────────────────────────── */
+.wizard {
+  max-width: 640px;
+  padding-top: 16px;
+}
+.wizard-progress {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: 4px;
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+.wizard-progress li {
+  padding-top: 8px;
+  border-top: 4px solid var(--surface-2);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.wizard-progress li.is-done {
+  border-top-color: var(--sign-black);
+  color: var(--ink-2);
+}
+.wizard-progress li.is-current {
+  border-top-color: var(--sign-black);
+  color: var(--ink);
+}
+.wizard__step {
+  display: block;
+  animation: step-in 180ms var(--ease-out);
+}
+.wizard__step > .who__option--shared {
+  width: 100%;
+}
+@media (max-width: 767px) {
+  /* «Далее» прибито к низу экрана, у большого пальца */
+  .wizard {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+  .wizard .form__submit {
+    position: fixed;
+    inset: auto 0 0;
+    margin: 0;
+  }
+}
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.step-q {
+  margin-bottom: 20px;
+}
+.step-q__title {
+  margin: 0;
+  font-size: clamp(30px, 8vw, 40px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.step-q__hint {
+  max-width: 48ch;
+  margin: 8px 0 0;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+.who__option[aria-pressed="true"] {
+  background: var(--sign-black);
+  color: #ffffff;
+}
+.who__option[aria-pressed="true"] .pictogram {
+  background: #ffffff;
+  color: var(--sign-black);
+}
+.choice-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.guests-list {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 2px solid var(--sign-black);
+}
+.guests-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 60px;
+  border-bottom: 1px solid var(--line);
+}
+.guests-list b {
+  display: block;
+  font-size: 16px;
+}
+.guests-list small {
+  font-size: 14px;
+  color: var(--ink-3);
+}
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border: var(--frame);
+}
+.stepper button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: #ffffff;
+  color: var(--ink);
+  cursor: pointer;
+}
+.stepper button:hover {
+  background: var(--surface-2);
+}
+.stepper button:disabled {
+  color: #9a9a9a;
+  cursor: not-allowed;
+  background: #ffffff;
+}
+.stepper output {
+  min-width: 36px;
+  font-size: 20px;
+  font-weight: 800;
+  text-align: center;
+}
+.optional {
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.review {
+  margin: 0;
+  border-top: 2px solid var(--sign-black);
+}
+.review > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "dt btn"
+    "dd btn";
+  align-items: center;
+  column-gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.review dt {
+  grid-area: dt;
+  font-size: 14px;
+  color: var(--ink-3);
+}
+.review dd {
+  grid-area: dd;
+  margin: 2px 0 0;
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+.review .inline-link {
+  grid-area: btn;
+  min-height: 44px;
+}
+/* стоимость — табличка на чёрном: главная цифра крупно */
+.cost-sign {
+  margin-top: 24px;
+  padding: 16px;
+  background: var(--sign-black);
+  color: #ffffff;
+}
+.cost-sign__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.cost-sign__head b {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--sign-yellow);
+}
+.cost-sign__split {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #cfcfcf;
+}
+.cost-sign__riders {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid #3a3a3a;
+}
+.cost-sign__riders li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #3a3a3a;
+  font-size: 16px;
+}
+.cost-sign__note {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #e3e3e3;
+}
+.wordmark--button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* деньги: строка владельца — данные слева, сумма справа */
+.money-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: 12px;
+  padding: 12px 0;
+}
+.money-row__sum {
+  text-align: right;
+}
+.money-row__sum b {
+  display: block;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.money-row__sum small {
+  display: block;
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.money-row__sum .is-plus {
+  color: #1d6b2f;
+}
+.money-row__sum .is-minus {
+  color: var(--danger);
+}
+.money-row .person__meta + .person__meta {
+  margin-top: 2px;
+}
+@media (min-width: 768px) {
+  .money-cta {
+    display: none;
+  }
+}
+
+/* нижняя навигация на телефоне: четыре раздела — знак над подписью */
+@media (max-width: 767px) {
+  .tabbar a {
+    flex-direction: column;
+    gap: 3px;
+    min-height: 58px;
+    font-size: 12px;
+  }
+  .app-main {
+    padding-bottom: calc(58px + env(safe-area-inset-bottom));
+  }
+  .app-main.has-cta {
+    padding-bottom: calc(58px + 78px + env(safe-area-inset-bottom));
+  }
+}

@@ -1,4 +1,4 @@
-import { TripForm } from '@features/trip-form/TripForm';
+import { TripWizard } from '@features/trip-wizard/TripWizard';
 import {
   createTrip,
   deleteTrip,
@@ -14,12 +14,15 @@ import { Topbar } from '@widgets/topbar/Topbar';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+type Step = 0 | 1 | 2 | 3;
+
 export function TripPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { members, viewer, loading } = useSession();
   const [trip, setTrip] = useState<Trip | null | undefined>(id ? undefined : null);
-  const [last, setLast] = useState<Journal['lastOdometer'] | undefined>(id ? null : undefined);
+  const [journal, setJournal] = useState<Journal | null>(null);
+  const [step, setStep] = useState<Step>(id ? 3 : 0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,14 +31,18 @@ export function TripPage() {
       fetchTrip(id)
         .then(setTrip)
         .catch((e) => setError(errorText(e)));
-    else
-      fetchJournal()
-        .then((j) => setLast(j.lastOdometer))
-        .catch(() => setLast(null));
   }, [id]);
+  // ставки и последнее показание одометра — из журнала года поездки
+  const year = trip?.date.slice(0, 4);
+  useEffect(() => {
+    if (id && !year) return;
+    fetchJournal(year)
+      .then(setJournal)
+      .catch((e) => setError(errorText(e)));
+  }, [id, year]);
 
-  const back = (fresh?: string, year?: string) =>
-    navigate(year && year !== String(new Date().getFullYear()) ? `/?year=${year}` : '/', {
+  const back = (fresh?: string, y?: string) =>
+    navigate(y && y !== String(new Date().getFullYear()) ? `/?year=${y}` : '/', {
       state: fresh ? { fresh } : null,
     });
 
@@ -68,12 +75,20 @@ export function TripPage() {
     }
   };
 
-  const ready = !loading && trip !== undefined && last !== undefined;
+  // «назад» в полосе: на первом шаге (или из проверки готовой поездки) — в журнал, иначе — на шаг назад
+  const onBack = id
+    ? step === 3
+      ? () => navigate(-1)
+      : () => setStep(3)
+    : step === 0
+      ? () => navigate(-1)
+      : () => setStep((step - 1) as Step);
+  const ready = !loading && trip !== undefined && journal;
   return (
     <>
       <Topbar
         section={id ? (trip ? `Поездка ${longDate(trip.date)}` : 'Поездка') : 'Новая поездка'}
-        back="/"
+        back={onBack}
       />
       <div className="page">
         {id && trip === undefined && error ? (
@@ -81,9 +96,13 @@ export function TripPage() {
             <span>{error}</span>
           </div>
         ) : ready ? (
-          <TripForm
+          <TripWizard
             trip={trip ?? undefined}
-            last={last ?? null}
+            step={step}
+            setStep={setStep}
+            last={trip ? null : journal.lastOdometer}
+            rates={journal.rates}
+            fuelMode={journal.settings.fuelMode}
             members={members}
             meId={viewer?.memberId ?? null}
             busy={busy}

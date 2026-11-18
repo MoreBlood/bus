@@ -1,7 +1,9 @@
 // Все операции сервиса в одном месте — их зовут HTTP-API (дашборд) и MCP (агенты).
 import type { Db } from '../db/index.ts';
 import * as assistantSvc from './assistant.ts';
+import * as moneySvc from './money.ts';
 import * as oauthClientsSvc from './oauth-clients.ts';
+import * as settingsSvc from './settings.ts';
 import * as membersSvc from './members.ts';
 import type { Viewer } from './members.ts';
 import * as tripsSvc from './trips.ts';
@@ -25,6 +27,17 @@ export function createService(db: Db) {
     createTrip: (v: Viewer, b: unknown) => tripsSvc.createTrip(db, v, b),
     updateTrip: (v: Viewer, b: unknown) => tripsSvc.updateTrip(db, v, b),
     deleteTrip: (v: Viewer, id: unknown) => tripsSvc.deleteTrip(db, v, id),
+
+    // деньги: ставки, заправки, переводы
+    money: (year?: string) => moneySvc.money(db, year),
+    settings: () => settingsSvc.getSettings(db),
+    saveSettings: (v: Viewer, b: unknown) => settingsSvc.saveSettings(db, v, b),
+    refuel: (id: string) => moneySvc.getRefuel(db, id),
+    createRefuel: (v: Viewer, b: unknown) => moneySvc.createRefuel(db, v, b),
+    updateRefuel: (v: Viewer, b: unknown) => moneySvc.updateRefuel(db, v, b),
+    deleteRefuel: (v: Viewer, id: unknown) => moneySvc.deleteRefuel(db, v, id),
+    createTransfer: (v: Viewer, b: unknown) => moneySvc.createTransfer(db, v, b),
+    deleteTransfer: (v: Viewer, id: unknown) => moneySvc.deleteTransfer(db, v, id),
 
     exportData: () => tripsSvc.exportData(db),
     assistantConnections: (v: Viewer) => assistantSvc.connections(db, v),

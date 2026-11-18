@@ -13,7 +13,9 @@ export type PictogramName =
   | 'plus'
   | 'key'
   | 'copy'
-  | 'check';
+  | 'check'
+  | 'pump'
+  | 'wrench';
 
 const PATHS: Record<PictogramName, ReactNode> = {
   // бус сбоку: кузов с покатым носом, окна, два колеса
@@ -63,6 +65,17 @@ const PATHS: Record<PictogramName, ReactNode> = {
     </>
   ),
   check: <path d="M4.5 12.5l5 5 10-11" />,
+  // колонка заправки: корпус, окошко, шланг с пистолетом
+  pump: (
+    <>
+      <path d="M4.5 20.5v-15a1.5 1.5 0 0 1 1.5-1.5h6a1.5 1.5 0 0 1 1.5 1.5v15M3 20.5h12" />
+      <path d="M7 7.5h4v3.5H7zM13.5 9h2.5l2.5 2.5V17a1.5 1.5 0 0 0 3 0V8l-2.5-2.5" />
+    </>
+  ),
+  // гаечный ключ: поездка по делам буса
+  wrench: (
+    <path d="M14.5 4a5 5 0 0 0-4.7 6.7L4 16.5 7.5 20l5.8-5.8A5 5 0 0 0 20 9.5l-3 3-3-.9-.9-3 3-3A5 5 0 0 0 14.5 4Z" />
+  ),
   key: (
     <>
       <circle cx="8" cy="12" r="3.5" />
