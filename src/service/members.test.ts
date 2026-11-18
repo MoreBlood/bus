@@ -16,7 +16,7 @@ const { account, user } = await import('../db/auth-schema.ts');
 const { connection, dbConfig } = await import('../db/index.ts');
 const { members } = await import('../db/schema.ts');
 const { migrateAll } = await import('../migrate.ts');
-const { admitGithubUser, resolveViewer, updateMember, LOCAL_VIEWER } = await import('./members.ts');
+const { admitGithubUser, createMember, resolveViewer, updateMember, LOCAL_VIEWER } = await import('./members.ts');
 
 let client: ReturnType<typeof createClient>;
 let db: ReturnType<typeof drizzle<typeof dbConfig.schema>>;
@@ -55,6 +55,17 @@ describe('вход через GitHub', () => {
     assert.equal(await admitGithubUser(db, 'anya-new', '111'), true);
     const m = await db.query.members.findFirst({ where: (t, { eq }) => eq(t.id, 'anya') });
     assert.equal(m?.githubLogin, 'anya-new');
+  });
+
+  it('участник без логина не входит; логин добавили позже — входит и привязывается', async () => {
+    const { id } = await createMember(db, LOCAL_VIEWER, { name: 'Костя' });
+    const m0 = await db.query.members.findFirst({ where: (t, { eq }) => eq(t.id, id) });
+    assert.equal(m0?.githubLogin, null);
+    assert.equal(await admitGithubUser(db, 'kostya', '777'), false);
+    await updateMember(db, LOCAL_VIEWER, { id, githubLogin: 'Kostya' });
+    assert.equal(await admitGithubUser(db, 'kostya', '777'), true);
+    const m = await db.query.members.findFirst({ where: (t, { eq }) => eq(t.id, id) });
+    assert.equal(m?.githubId, '777');
   });
 
   it('посторонний не входит', async () => {
