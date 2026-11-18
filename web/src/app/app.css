@@ -1330,3 +1330,10 @@ code {
     font-size: 14px;
   }
 }
+
+/* версия приложения внизу «Участников» */
+.app-version {
+  margin: 32px 0 0;
+  font-size: 14px;
+  color: var(--ink-3);
+}

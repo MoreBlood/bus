@@ -3,6 +3,7 @@
 - Что за продукт и для кого — `PRODUCT.md`. Как устроено и как запускать — `README.md`.
 - Интерфейс по-русски, комментарии в коде тоже по-русски, коротко: зачем, а не что.
 - `main` защищён: только PR, squash-мерж при зелёной проверке «Готово к мержу» и одобрении (см. `CONTRIBUTING.md`). Работайте в ветке.
+- Заголовок PR — Conventional Commits по-русски (`feat(журнал): …`, `fix: …`): из него release-please пишет CHANGELOG и поднимает версию. `CHANGELOG.md`, `src/version.ts` и версию в `package.json` руками не менять.
 - Проверка перед PR: `npm run check` (типы сервера и `web/`, тесты `src/**/*.test.ts` — включая HTTP API и MCP, Biome).
 - Схема базы меняется только через `src/db/schema.ts` + `npm run db:generate`; миграции из `drizzle/` не правьте руками.
 - Вся логика — в `src/service/`, её зовут и HTTP (`src/http.ts`), и MCP (`src/mcp.ts`): новая операция обычно нужна в обоих.

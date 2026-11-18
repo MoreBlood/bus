@@ -63,6 +63,8 @@ export interface AssistantStatus {
   mcpUrl: string;
   /** локальная установка: подключается только Claude Code на этом компьютере */
   local: boolean;
+  /** превью PR: MCP открыт без входа, данные демо */
+  demo: boolean;
   connections: { clientId: string; name: string; since: string | null }[];
 }
 export const fetchAssistant = () => get<AssistantStatus>('/api/assistant');

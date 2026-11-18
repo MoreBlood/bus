@@ -1,9 +1,11 @@
 import { useSession } from '@shared/model/session';
+import { useSetup } from '@shared/model/setup';
 import { MemberList } from '@widgets/member-list/MemberList';
 import { Topbar } from '@widgets/topbar/Topbar';
 
 export function MembersPage() {
   const { members, viewer, reloadMembers, loading } = useSession();
+  const setup = useSetup();
   const active = members.filter((m) => m.active).length;
   const admins = members.filter((m) => m.active && (m.isAdmin || m.envAdmin)).map((m) => m.name);
   return (
@@ -32,6 +34,19 @@ export function MembersPage() {
             />
           ) : (
             <MemberList members={members} viewer={viewer} reload={reloadMembers} />
+          )}
+          {setup?.version && (
+            <p className="app-version">
+              Бус {setup.version}
+              {setup.commit ? ` · ${setup.commit}` : ''} ·{' '}
+              <a
+                href="https://github.com/MoreBlood/bus/blob/main/CHANGELOG.md"
+                target="_blank"
+                rel="noreferrer"
+              >
+                что нового
+              </a>
+            </p>
           )}
         </div>
       </div>

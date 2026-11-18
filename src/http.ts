@@ -3,11 +3,12 @@ import { oauthProviderAuthServerMetadata, oauthProviderOpenIdConfigMetadata } fr
 import { requireMcpAuth } from '@better-auth/mcp';
 import { type Context, Hono, type Next } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { type Auth, authConfigured, authRequired, baseURL, mcpResource } from './auth.ts';
+import { type Auth, authConfigured, authRequired, baseURL, demoMode, mcpResource } from './auth.ts';
 import { createMcp } from './mcp.ts';
 import { AppError } from './service/errors.ts';
 import type { Service, Viewer } from './service/index.ts';
 import { LOCAL_VIEWER } from './service/members.ts';
+import { VERSION } from './version.ts';
 
 export type Env = { Variables: { viewer: Viewer } };
 
@@ -81,6 +82,11 @@ export function createApp({ service, auth }: { service: Service; auth: Auth | nu
       baseUrl: baseURL(),
       mcpUrl: mcpResource(),
       githubCallbackUrl: `${baseURL()}/api/auth/callback/github`,
+      demo: demoMode(),
+      version: VERSION,
+      commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
+      pr: process.env.VERCEL_GIT_PULL_REQUEST_ID || null,
+      branch: process.env.VERCEL_GIT_COMMIT_REF ?? null,
     });
   });
 
@@ -99,7 +105,12 @@ export function createApp({ service, auth }: { service: Service; auth: Auth | nu
 
   api.get('/me', (c) => c.json(c.get('viewer')));
   api.get('/assistant', async (c) =>
-    c.json({ mcpUrl: mcpResource(), local: !authRequired(), connections: await service.assistantConnections(c.get('viewer')) }),
+    c.json({
+      mcpUrl: mcpResource(),
+      local: !authRequired() && !demoMode(),
+      demo: demoMode(),
+      connections: await service.assistantConnections(c.get('viewer')),
+    }),
   );
 
   api.get('/members', async (c) => c.json(await service.members()));

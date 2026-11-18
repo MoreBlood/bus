@@ -91,11 +91,19 @@ export function JournalPage() {
             </span>
           </div>
         )}
-        {setup && !setup.auth && (
+        {setup?.demo ? (
           <p className="local-note">
-            <span className="tag tag--muted">локально</span>
-            Копия для разработки: поездки с меткой «демо» вымышленные
+            <span className="tag">превью</span>
+            {setup.pr ? `PR #${setup.pr}` : setup.branch}: демо-данные, вход выключен
           </p>
+        ) : (
+          setup &&
+          !setup.auth && (
+            <p className="local-note">
+              <span className="tag tag--muted">локально</span>
+              Копия для разработки: поездки с меткой «демо» вымышленные
+            </p>
+          )
         )}
         <AssistantBanner />
         {(!journal || sessionLoading) && !error && <JournalSkeleton />}
