@@ -11,6 +11,15 @@
         ],
         "createdAt": "2026-11-18T11:39:40.410Z",
         "reason": "Claude: shimmer of Radix Themes Progress (indeterminate) from the bundled library CSS; the app never renders Progress, public/ is build output"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "sf mono",
+        "files": [
+          "web/src/app/app.css"
+        ],
+        "createdAt": "2026-11-18T11:46:20.135Z",
+        "reason": "Claude: platform monospace only for literal code on the Assistant page (MCP URL, CLI command), allowed by craft-floor (mono for code/data)"
       }
     ]
   }
