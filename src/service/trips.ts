@@ -181,13 +181,15 @@ export const withCost = (t: WithRiders, ratesOf: (t: WithRiders) => TripRates, y
 export function unrecordedCost(issues: OdometerIssue[], ctx: Awaited<ReturnType<typeof costContext>>) {
   let km = 0;
   let cost = 0;
+  let fuel = 0;
   for (const i of issues)
     if (i.kind === 'gap') {
       const r = ctx.ratesOf({ date: i.date, odoStart: i.fromOdo, odoEnd: i.toOdo });
       km += i.km;
       cost += i.km * (r.amortPerKm + r.fuelPerKm);
+      fuel += i.km * r.fuelPerKm;
     }
-  return { km, cost };
+  return { km, cost, fuel };
 }
 
 export async function journal(db: Db, year = currentYear()): Promise<Journal> {

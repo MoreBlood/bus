@@ -4,6 +4,7 @@ import type {
   Member,
   MemberInput,
   Money,
+  PeriodInput,
   Refuel,
   RefuelInput,
   Setup,
@@ -84,6 +85,8 @@ export const fetchAssistant = () => get<AssistantStatus>('/api/assistant');
 export const fetchMoney = (year?: string) =>
   get<Money>(year ? `/api/money?year=${year}` : '/api/money');
 export const saveSettings = (b: Partial<CostSettings>) => post<CostSettings>('/api/settings', b);
+export const savePeriod = (b: PeriodInput) => post<{ ok: boolean; validFrom: string }>('/api/rates', b);
+export const deletePeriod = (id: string) => post<{ ok: boolean }>('/api/rates/delete', { id });
 export const fetchRefuel = (id: string) => get<Refuel>(`/api/refuels/${id}`);
 export const createRefuel = (b: RefuelInput) => post<{ id: string }>('/api/refuels', b);
 export const updateRefuel = (id: string, b: RefuelInput) =>

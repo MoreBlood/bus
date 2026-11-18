@@ -254,13 +254,22 @@ export interface MemberMoney {
 export interface MoneySummary {
   members: MemberMoney[];
   /** общая касса: поездки по делам буса и км, которые никто не записал */
-  fund: { km: number; amort: number; fuel: number; extras: number; unrecordedKm: number; unrecorded: number };
+  fund: {
+    km: number;
+    amort: number;
+    fuel: number;
+    extras: number;
+    /** км по разрывам одометра — их тоже везёт касса */
+    unrecordedKm: number;
+    unrecorded: number;
+    unrecordedFuel: number;
+  };
 }
 
 /** Итоги года по владельцам и кассе. Поездки — уже с посчитанной стоимостью. */
 export function moneySummary(
   trips: (CostTrip & { cost: TripCost })[],
-  unrecorded: { km: number; cost: number } = { km: 0, cost: 0 },
+  unrecorded: { km: number; cost: number; fuel: number } = { km: 0, cost: 0, fuel: 0 },
 ): MoneySummary {
   const by = new Map<string, MemberMoney>();
   const fund = { km: 0, amort: 0, fuel: 0, extras: 0 };
@@ -297,6 +306,7 @@ export function moneySummary(
       extras: round2(fund.extras),
       unrecordedKm: unrecorded.km,
       unrecorded: round2(unrecorded.cost),
+      unrecordedFuel: round2(unrecorded.fuel),
     },
   };
 }
@@ -340,7 +350,9 @@ export function fuelLedger(
     return a;
   };
   for (const m of summary.members) get(m.memberId).used += m.fuel + m.extras;
-  if (summary.fund.fuel + summary.fund.extras) get(null).used += summary.fund.fuel + summary.fund.extras;
+  // касса: поездки по делам буса и топливо км, которые никто не записал (кто-то же его залил)
+  const fundUsed = summary.fund.fuel + summary.fund.extras + summary.fund.unrecordedFuel;
+  if (fundUsed) get(null).used += fundUsed;
   for (const r of paid) get(r.paidBy).paid += r.amount;
   for (const t of transfers) {
     get(t.fromId).sent += t.amount;

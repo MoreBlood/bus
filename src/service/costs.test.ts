@@ -121,7 +121,7 @@ describe('moneySummary и fuelLedger', () => {
     trip({ km: 100, riders: [{ memberId: 'anya', guests: 0 }] }),
     trip({ km: 100, shared: true, riders: [] }),
   ].map((t) => ({ ...t, cost: tripCost(t, r, '2026') }));
-  const s = moneySummary(trips, { km: 37, cost: 37 });
+  const s = moneySummary(trips, { km: 37, cost: 48.1, fuel: 37 });
 
   it('итоги по владельцам и кассе, неучтённые км — на кассе', () => {
     const misha = s.members.find((m) => m.memberId === 'misha');
@@ -132,14 +132,15 @@ describe('moneySummary и fuelLedger', () => {
   });
 
   it('долги гасятся переводами', () => {
-    const { accounts, settlements } = fuelLedger(s, [{ paidBy: 'anya', amount: 500 }], []);
+    const { accounts, settlements } = fuelLedger(s, [{ paidBy: 'anya', amount: 537 }], []);
     near(accounts.reduce((sum, a) => sum + a.balance, 0), 0);
+    // касса везёт и поездку по делам буса (100), и неучтённые 37 км (37)
     assert.deepEqual(settlements, [
       { from: 'misha', to: 'anya', amount: 300 },
-      { from: null, to: 'anya', amount: 100 },
+      { from: null, to: 'anya', amount: 137 },
     ]);
-    const after = fuelLedger(s, [{ paidBy: 'anya', amount: 500 }], [{ fromId: 'misha', toId: 'anya', amount: 300 }]);
-    assert.deepEqual(after.settlements, [{ from: null, to: 'anya', amount: 100 }]);
+    const after = fuelLedger(s, [{ paidBy: 'anya', amount: 537 }], [{ fromId: 'misha', toId: 'anya', amount: 300 }]);
+    assert.deepEqual(after.settlements, [{ from: null, to: 'anya', amount: 137 }]);
   });
 });
 
