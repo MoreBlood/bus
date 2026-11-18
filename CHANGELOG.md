@@ -2,6 +2,14 @@
 
 Что менялось в «Бусе». Записи ведёт release-please по заголовкам PR — руками не правьте.
 
+## [0.2.1](https://github.com/MoreBlood/bus/compare/v0.2.0...v0.2.1) (2026-11-18)
+
+
+### Исправления
+
+* закрыть уязвимости — угон логина, кликджекинг, CSRF, злоупотребление регистрацией OAuth ([#11](https://github.com/MoreBlood/bus/issues/11)) ([c31f4e3](https://github.com/MoreBlood/bus/commit/c31f4e3694926007d00a7cfe418544fce6e701d9))
+* редирект со старых адресов деплоя без служебного ?path ([#13](https://github.com/MoreBlood/bus/issues/13)) ([c958c32](https://github.com/MoreBlood/bus/commit/c958c32e615d10ed118c81b94b8de6ab5475b538))
+
 ## [0.2.0](https://github.com/MoreBlood/bus/compare/v0.1.0...v0.2.0) (2026-11-18)
 
 
