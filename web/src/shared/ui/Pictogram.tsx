@@ -16,6 +16,7 @@ import {
   Minus,
   Plus,
   Receipt,
+  Toolbox,
   User,
   Users,
   Van,
@@ -35,6 +36,8 @@ const ICONS = {
   minus: [Minus, 'bold'],
   // расходы в дороге: чек
   receipt: [Receipt, 'fill'],
+  // ремонт и ТО
+  toolbox: [Toolbox, 'fill'],
   // помощник ставки амортизации
   calculator: [Calculator, 'fill'],
   key: [Key, 'fill'],

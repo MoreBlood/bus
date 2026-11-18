@@ -572,7 +572,7 @@ export function TripWizard({
                   <p className="cost-sign__note">
                     {cost.heads > 1 ? `По ${zl(cost.perHead)} с человека. ` : ''}
                     {costs.settings.fuelMode === 'rate'
-                      ? `Бак на бак: топливо ${zl(cost.fuel)} делите на месте${cost.heads > 1 ? ` — по ${zl(cost.fuel / cost.heads)}` : ''}; амортизация идёт в кассу.`
+                      ? `Бак на бак: топливо ${zl(cost.fuel)} делите на месте${cost.heads > 1 ? ` — по ${zl(cost.fuel / cost.heads)}` : ''}; амортизация — в резерв на ремонт.`
                       : 'Всё учтётся в «Деньгах»: кто заправлял или платил в дороге — тому вернут.'}
                   </p>
                 </>

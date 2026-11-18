@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { asc, count, desc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Db, Q } from '../db/index.ts';
-import { members, refuels, type Trip, transfers, tripRiders, trips } from '../db/schema.ts';
+import { members, ratePeriods, refuels, repairs, type Trip, transfers, tripRiders, trips } from '../db/schema.ts';
 import { demoMode } from '../env.ts';
 import { badRequest, conflict, notFound } from './errors.ts';
 import {
@@ -302,12 +302,14 @@ export async function deleteTrip(db: Db, _v: Viewer, id: unknown) {
 export async function exportData(db: Db) {
   return {
     format: 'bus-export',
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     settings: await getSettings(db),
     members: await db.select().from(members).orderBy(asc(members.sort)),
     trips: (await tripsWithRiders(db)).reverse(),
     refuels: await db.select().from(refuels).orderBy(asc(refuels.date)),
     transfers: await db.select().from(transfers).orderBy(asc(transfers.date)),
+    ratePeriods: await db.select().from(ratePeriods).orderBy(asc(ratePeriods.validFrom)),
+    repairs: await db.select().from(repairs).orderBy(asc(repairs.date)),
   };
 }

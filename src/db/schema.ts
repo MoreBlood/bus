@@ -110,6 +110,33 @@ export const refuels = sqliteTable(
   (t) => [index('refuels_date').on(t.date), check('refuels_positive', sql`${t.liters} > 0 AND ${t.amount} > 0`)],
 );
 
+/**
+ * Ремонт и ТО. Обычно платит касса: ремонт гасится из резерва — амортизации, которую каждый начислил своими км.
+ * kind: service — плановое ТО, repair — ремонт, tires — шины, other — прочее, upgrade — улучшение (поровну на
+ * владельцев, не из резерва). chargedTo — поломка по вине участника: вся сумма на нём. Сумма — в грошах.
+ */
+export const repairs = sqliteTable(
+  'repairs',
+  {
+    id: text().primaryKey(),
+    date: text().notNull(),
+    odometer: integer(),
+    kind: text().notNull().default('repair'),
+    title: text().notNull(),
+    amount: integer().notNull(),
+    /** кто заплатил в сервисе; null — из общей кассы */
+    paidBy: text().references(() => members.id),
+    /** за чей счёт, если по вине участника; null — из резерва (или поровну для улучшений) */
+    chargedTo: text().references(() => members.id),
+    note: text().notNull().default(''),
+    createdBy: text(),
+    updatedBy: text(),
+    createdAt: text().notNull().default(now),
+    updatedAt: text(),
+  },
+  (t) => [index('repairs_date').on(t.date), check('repairs_positive', sql`${t.amount} > 0`)],
+);
+
 /** Перевод между участниками (или с общей кассой, null) — закрывает долги за бензин. Сумма — в грошах. */
 export const transfers = sqliteTable(
   'transfers',
@@ -156,4 +183,5 @@ export type Trip = typeof trips.$inferSelect;
 export type TripRider = typeof tripRiders.$inferSelect;
 export type Refuel = typeof refuels.$inferSelect;
 export type Transfer = typeof transfers.$inferSelect;
+export type Repair = typeof repairs.$inferSelect;
 export type RatePeriodRow = typeof ratePeriods.$inferSelect;

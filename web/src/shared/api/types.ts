@@ -224,6 +224,54 @@ export interface Settlement {
   amount: number;
 }
 
+export type RepairKind = 'service' | 'repair' | 'tires' | 'other' | 'upgrade';
+
+/** Как поделён ремонт: из резерва по износу, поровну на владельцев или на виновника. */
+export interface RepairSplit {
+  shares: { memberId: string; amount: number }[];
+  fromReserve: number;
+  overflow: number;
+  how: 'reserve' | 'owners' | 'charged';
+}
+
+export interface Repair {
+  id: string;
+  date: string;
+  odometer: number | null;
+  kind: RepairKind;
+  title: string;
+  /** zł */
+  amount: number;
+  /** null — из общей кассы */
+  paidBy: string | null;
+  /** по вине участника — вся сумма на нём */
+  chargedTo: string | null;
+  note: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+  split?: RepairSplit | null;
+}
+
+export interface RepairInput {
+  date: string;
+  odometer: number | null;
+  kind: RepairKind;
+  title: string;
+  amount: number;
+  paidBy: string | null;
+  chargedTo: string | null;
+  note: string;
+}
+
+/** Резерв на ремонт: амортизация, которую каждый начислил своими км, минус то, что ушло на ремонты. */
+export interface Reserve {
+  accrued: number;
+  spent: number;
+  left: number;
+  overflow: number;
+  members: { memberId: string; accrued: number; spent: number; left: number }[];
+}
+
 export interface Money {
   year: string;
   years: string[];
@@ -232,7 +280,13 @@ export interface Money {
   /** ставки на сегодня */
   rates: TripRates;
   summary: MoneySummary;
-  fuel: { accounts: FuelAccount[]; settlements: Settlement[] } | null;
+  /** кто кому должен: топливо (в учёте заправок), ремонты, переводы; null — делить нечего */
+  ledger: { accounts: FuelAccount[]; settlements: Settlement[] } | null;
+  repairsByMember: { memberId: string; amount: number }[];
+  reserve: Reserve;
+  /** ремонты из резерва за 12 месяцев на все км за это время */
+  fact: { from: string; km: number; spent: number; perKm: number | null };
+  repairs: Repair[];
   /** отрезки между полными баками этого года */
   intervals: FuelInterval[];
   refuels: Refuel[];

@@ -311,12 +311,12 @@ export function moneySummary(
   };
 }
 
-/** Счёт в учёте расходов поездок: владелец или общая касса (id = null). */
+/** Счёт в учёте «кто кому должен»: владелец или общая касса (id = null). */
 export interface FuelAccount {
   id: string | null;
-  /** заплатил: заправки и расходы поездок, zł */
+  /** заплатил: заправки, расходы поездок, ремонты, zł */
   paid: number;
-  /** израсходовал по поездкам (топливо и расходы поездок), zł */
+  /** несёт: топливо и расходы своих поездок, доли ремонтов, zł */
   used: number;
   sent: number;
   received: number;
@@ -332,14 +332,23 @@ export interface Settlement {
 
 const key = (id: string | null) => id ?? '__fund';
 
+/** Сколько каждый израсходовал по поездкам в режиме учёта заправок: топливо и расходы в дороге. */
+export function fuelUsed(summary: MoneySummary): { id: string | null; amount: number }[] {
+  const used: { id: string | null; amount: number }[] = summary.members.map((m) => ({ id: m.memberId, amount: m.fuel + m.extras }));
+  // касса: поездки по делам буса и топливо км, которые никто не записал (кто-то же его залил)
+  const fund = summary.fund.fuel + summary.fund.extras + summary.fund.unrecordedFuel;
+  if (fund) used.push({ id: null, amount: fund });
+  return used;
+}
+
 /**
- * Учёт заправок: кто сколько заплатил (заправки и расходы поездок) и сколько израсходовал по своим
- * поездкам (вместе с гостями), плюс переводы. Предлагает минимум переводов, чтобы всех рассчитать.
+ * Кто кому должен: кто сколько заплатил (заправки, расходы поездок, ремонты) и сколько несёт (used: топливо по
+ * своим поездкам вместе с гостями, доли ремонтов), плюс переводы. Предлагает минимум переводов.
  * Топливо, оставшееся в баке после последней полной заправки, ещё никем не израсходовано — поэтому
  * сумма балансов может быть не ноль: её «держит» бак.
  */
-export function fuelLedger(
-  summary: MoneySummary,
+export function ledger(
+  used: { id: string | null; amount: number }[],
   paid: { paidBy: string | null; amount: number }[],
   transfers: { fromId: string | null; toId: string | null; amount: number }[],
 ): { accounts: FuelAccount[]; settlements: Settlement[] } {
@@ -349,10 +358,7 @@ export function fuelLedger(
     if (!a) acc.set(key(id), (a = { id, paid: 0, used: 0, sent: 0, received: 0, balance: 0 }));
     return a;
   };
-  for (const m of summary.members) get(m.memberId).used += m.fuel + m.extras;
-  // касса: поездки по делам буса и топливо км, которые никто не записал (кто-то же его залил)
-  const fundUsed = summary.fund.fuel + summary.fund.extras + summary.fund.unrecordedFuel;
-  if (fundUsed) get(null).used += fundUsed;
+  for (const u of used) if (u.amount) get(u.id).used += u.amount;
   for (const r of paid) get(r.paidBy).paid += r.amount;
   for (const t of transfers) {
     get(t.fromId).sent += t.amount;
@@ -388,3 +394,126 @@ export function fuelLedger(
 /** Ставка амортизации из статей: сумма в год / км в год. */
 export const amortFromBasis = (b: AmortBasis) =>
   b.kmPerYear > 0 ? Math.round((b.items.reduce((s, i) => s + i.perYear, 0) / b.kmPerYear) * 1000) / 1000 : 0;
+
+// ─── ремонт и ТО ──────────────────────────────────────────────────────────────
+
+export type RepairKind = 'service' | 'repair' | 'tires' | 'other' | 'upgrade';
+
+export const REPAIR_KINDS: Record<RepairKind, string> = {
+  service: 'ТО',
+  repair: 'Ремонт',
+  tires: 'Шины',
+  other: 'Прочее',
+  upgrade: 'Улучшение',
+};
+
+export interface RepairLike {
+  id: string;
+  date: string;
+  /** zł */
+  amount: number;
+  kind: RepairKind;
+  /** поломка по вине участника — вся сумма на нём */
+  chargedTo: string | null;
+}
+
+/** Как поделён ремонт: из резерва (по амортизации), поровну на владельцев или на виновника. */
+export interface RepairSplit {
+  shares: { memberId: string; amount: number }[];
+  /** сколько взято из резерва */
+  fromReserve: number;
+  /** сколько не хватило в резерве — поровну на владельцев */
+  overflow: number;
+  how: 'reserve' | 'owners' | 'charged';
+}
+
+export interface ReserveMember {
+  memberId: string;
+  /** начислено амортизацией за всё время */
+  accrued: number;
+  /** ушло на ремонты из резерва */
+  spent: number;
+  /** осталось в резерве */
+  left: number;
+}
+
+export interface Reserve {
+  accrued: number;
+  spent: number;
+  left: number;
+  /** ремонтов больше резерва — разделено поровну */
+  overflow: number;
+  members: ReserveMember[];
+}
+
+/**
+ * Резерв на ремонт. Амортизация никуда не переводится: это износ, который каждый начислил своими км.
+ * Ремонт за счёт кассы гасится из резерва — по всей истории до даты ремонта, пропорционально тому, кто сколько
+ * начислил: кто больше ездит, тот больше и платит. Не хватило резерва — остаток поровну на владельцев.
+ * Улучшение (бокс, кровать) — поровну на владельцев; поломка по вине — на виновника.
+ */
+export function repairShares(
+  accruals: { date: string; memberId: string; amort: number }[],
+  repairs: RepairLike[],
+  owners: string[],
+): { splits: Map<string, RepairSplit>; reserve: Reserve } {
+  const acc = [...accruals].sort((a, b) => a.date.localeCompare(b.date));
+  const reps = [...repairs].sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  const left = new Map<string, number>();
+  const accrued = new Map<string, number>();
+  const spent = new Map<string, number>();
+  const add = (m: Map<string, number>, id: string, v: number) => m.set(id, (m.get(id) ?? 0) + v);
+  const equal = (amount: number) => (owners.length ? owners.map((id) => ({ memberId: id, amount: amount / owners.length })) : []);
+  const splits = new Map<string, RepairSplit>();
+  let i = 0;
+  let overflowAll = 0;
+  for (const r of reps) {
+    // поездки этого дня и раньше уже начислили износ
+    for (; i < acc.length && acc[i].date <= r.date; i++) {
+      add(left, acc[i].memberId, acc[i].amort);
+      add(accrued, acc[i].memberId, acc[i].amort);
+    }
+    if (r.chargedTo) {
+      splits.set(r.id, { shares: [{ memberId: r.chargedTo, amount: r.amount }], fromReserve: 0, overflow: 0, how: 'charged' });
+      continue;
+    }
+    if (r.kind === 'upgrade') {
+      splits.set(r.id, { shares: equal(r.amount), fromReserve: 0, overflow: 0, how: 'owners' });
+      continue;
+    }
+    const pool = [...left.values()].reduce((s, v) => s + Math.max(0, v), 0);
+    const take = Math.min(r.amount, pool);
+    const by = new Map<string, number>();
+    if (take > 0)
+      for (const [id, v] of left) {
+        if (v <= 0) continue;
+        const part = (take * v) / pool;
+        add(by, id, part);
+        left.set(id, v - part);
+        add(spent, id, part);
+      }
+    const overflow = r.amount - take;
+    for (const s of equal(overflow)) add(by, s.memberId, s.amount);
+    overflowAll += overflow;
+    splits.set(r.id, {
+      shares: [...by].map(([memberId, amount]) => ({ memberId, amount: round2(amount) })),
+      fromReserve: round2(take),
+      overflow: round2(overflow),
+      how: 'reserve',
+    });
+  }
+  for (; i < acc.length; i++) {
+    add(left, acc[i].memberId, acc[i].amort);
+    add(accrued, acc[i].memberId, acc[i].amort);
+  }
+  const members = [...accrued.keys()]
+    .map((memberId) => ({
+      memberId,
+      accrued: round2(accrued.get(memberId) ?? 0),
+      spent: round2(spent.get(memberId) ?? 0),
+      left: round2(left.get(memberId) ?? 0),
+    }))
+    .sort((a, b) => b.left - a.left);
+  const sum = (k: 'accrued' | 'spent' | 'left') => round2(members.reduce((s, m) => s + m[k], 0));
+  return { splits, reserve: { accrued: sum('accrued'), spent: sum('spent'), left: sum('left'), overflow: round2(overflowAll), members } };
+}

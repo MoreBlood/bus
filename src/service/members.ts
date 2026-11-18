@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { isEnvAdmin } from '../auth-options.ts';
 import { account, user } from '../db/auth-schema.ts';
 import type { Db } from '../db/index.ts';
-import { type Member, members, tripRiders } from '../db/schema.ts';
+import { type Member, members, refuels, repairs, transfers, tripRiders, trips } from '../db/schema.ts';
 import { demoMode } from '../env.ts';
 import { badRequest, conflict, forbidden, notFound } from './errors.ts';
 
@@ -184,6 +184,13 @@ export async function deleteMember(db: Db, v: Viewer, id: unknown) {
   if (v.memberId === id) throw badRequest('Удалить себя нельзя');
   const used = await db.select({ n: count() }).from(tripRiders).where(eq(tripRiders.memberId, id)).get();
   if (used?.n) throw conflict('У участника есть поездки — отключите его вместо удаления, история сохранится');
+  // заправки, переводы, расходы поездок и ремонты ссылаются на участника — удаление сломало бы историю денег
+  const refs = await db.get<{ n: number }>(sql`
+    SELECT (SELECT count(*) FROM ${refuels} WHERE ${refuels.paidBy} = ${id})
+         + (SELECT count(*) FROM ${transfers} WHERE ${transfers.fromId} = ${id} OR ${transfers.toId} = ${id})
+         + (SELECT count(*) FROM ${trips} WHERE ${trips.extrasPaidBy} = ${id})
+         + (SELECT count(*) FROM ${repairs} WHERE ${repairs.paidBy} = ${id} OR ${repairs.chargedTo} = ${id}) AS n`);
+  if (refs?.n) throw conflict('У участника есть заправки, ремонты или переводы — отключите его вместо удаления');
   const r = await db.delete(members).where(and(eq(members.id, id))).returning({ id: members.id });
   if (!r.length) throw notFound('Участник не найден');
   return { ok: true };

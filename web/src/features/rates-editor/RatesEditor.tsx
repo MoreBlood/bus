@@ -1,7 +1,14 @@
 // Правка ставок (только админы): новый период «с даты» с помощником амортизации и общие настройки топлива.
 import { SegmentedControl, TextField } from '@radix-ui/themes';
 import { errorText, savePeriod, saveSettings } from '@shared/api/client';
-import type { AmortBasis, CostSettings, FuelMode, FuelType, RatePeriod } from '@shared/api/types';
+import type {
+  AmortBasis,
+  CostSettings,
+  FuelMode,
+  FuelType,
+  Money,
+  RatePeriod,
+} from '@shared/api/types';
 import { AMORT_ITEMS, amortFromBasis, FUEL_TYPES } from '@shared/lib/cost';
 import { num, today, zl, zlRate } from '@shared/lib/format';
 import { Glyph, Pictogram } from '@shared/ui/Pictogram';
@@ -97,11 +104,14 @@ function AmortHelper({
 export function PeriodEditor({
   current,
   settings,
+  fact,
   onSaved,
   onCancel,
 }: {
   current: RatePeriod;
   settings: CostSettings;
+  /** ремонты за 12 месяцев на км — ставка «по факту» */
+  fact?: Money['fact'];
   onSaved: () => void;
   onCancel: () => void;
 }) {
@@ -190,8 +200,26 @@ export function PeriodEditor({
           />
         ) : (
           <p className="field__hint">
-            Износ, ТО, шины, ремонт и потеря стоимости на каждый км — копится в кассу.
+            Износ, ТО, шины, ремонт и потеря стоимости на каждый км — копится в резерв на ремонт.
           </p>
+        )}
+        {!helper && fact?.perKm != null && (
+          <div className="fact-row">
+            <span>
+              По факту ремонтов за 12 месяцев: {zl(fact.spent)} ÷ {num(fact.km)} км ={' '}
+              <b>{zlRate(fact.perKm)}</b>
+            </span>
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => {
+                setAmort(str(Math.round((fact.perKm ?? 0) * 1000) / 1000));
+                setBasis(null);
+              }}
+            >
+              Взять
+            </button>
+          </div>
         )}
       </div>
 

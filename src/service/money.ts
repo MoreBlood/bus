@@ -1,17 +1,22 @@
-// Деньги буса: кто сколько должен за амортизацию, топливо и расходы поездок; заправки, переводы, ставки.
+// Деньги буса: кто сколько должен за амортизацию, топливо и расходы поездок; заправки, ремонты, переводы, ставки.
 import { randomUUID } from 'node:crypto';
 import { desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Db } from '../db/index.ts';
-import { members, type Refuel, refuels, type Transfer, transfers } from '../db/schema.ts';
+import { members, type Refuel, type Repair, refuels, repairs, type Transfer, transfers } from '../db/schema.ts';
 import {
   type CostSettings,
   type FuelAccount,
   type FuelInterval,
-  fuelLedger,
+  fuelUsed,
+  ledger,
   type MoneySummary,
   moneySummary,
   type RatePeriod,
+  type RepairKind,
+  type RepairSplit,
+  type Reserve,
+  repairShares,
   type Settlement,
   type TripRates,
 } from './costs.ts';
@@ -28,8 +33,15 @@ export interface Money {
   /** ставки на сегодня и откуда они */
   rates: TripRates;
   summary: MoneySummary;
-  /** учёт заправок: счета и предложенные переводы; null — режим «бак на бак» */
-  fuel: { accounts: FuelAccount[]; settlements: Settlement[] } | null;
+  /** кто кому должен: топливо (в учёте заправок), ремонты, переводы; null — делить нечего */
+  ledger: { accounts: FuelAccount[]; settlements: Settlement[] } | null;
+  /** доли ремонтов года по владельцам */
+  repairsByMember: { memberId: string; amount: number }[];
+  /** резерв на ремонт на сегодня: начислено амортизацией, ушло на ремонты, осталось */
+  reserve: Reserve;
+  /** ремонты за последние 12 месяцев на км — чтобы сверить ставку амортизации */
+  fact: { from: string; km: number; spent: number; perKm: number | null };
+  repairs: (Omit<Repair, 'amount' | 'kind'> & { amount: number; kind: RepairKind; split: RepairSplit | null })[];
   /** отрезки между полными баками этого года */
   intervals: FuelInterval[];
   refuels: (Omit<Refuel, 'amount'> & { amount: number })[];
@@ -56,15 +68,42 @@ export async function money(db: Db, year = currentYear()): Promise<Money> {
   );
   const asZl = <T extends { amount: number }>(r: T) => ({ ...r, amount: zl(r.amount) });
 
-  // кто что заплатил: заправки и расходы поездок; «вскладчину на месте» — каждый оплатил свою долю сам
-  const paid: { paidBy: string | null; amount: number }[] = yearRefuels.map((r) => ({ paidBy: r.paidBy, amount: zl(r.amount) }));
-  for (const t of inYear) {
+  // ремонты: резерв считается по всей истории — износ копится годами
+  const allRepairs = (await db.select().from(repairs).orderBy(desc(repairs.date), desc(repairs.createdAt))).map((r) => ({
+    ...r,
+    amount: zl(r.amount),
+    kind: r.kind as RepairKind,
+  }));
+  const owners = (await db.select({ id: members.id }).from(members).where(eq(members.active, true))).map((m) => m.id);
+  const accruals = all
+    .filter((t) => !t.shared)
+    .flatMap((t) => withCost(t, ctx.ratesOf).cost.riders.map((r) => ({ date: t.date, memberId: r.memberId, amort: r.amort })));
+  const { splits, reserve } = repairShares(accruals, allRepairs, owners);
+  const yearRepairs = allRepairs.filter((r) => r.date.startsWith(`${year}-`)).map((r) => ({ ...r, split: splits.get(r.id) ?? null }));
+  const repairsBy = new Map<string, number>();
+  for (const r of yearRepairs) for (const sh of r.split?.shares ?? []) repairsBy.set(sh.memberId, (repairsBy.get(sh.memberId) ?? 0) + sh.amount);
+
+  // ставка по факту: ремонты из резерва за 12 месяцев на все км за это время
+  const today = new Date().toISOString().slice(0, 10);
+  const from = new Date(Date.now() - 365 * 86_400_000).toISOString().slice(0, 10);
+  const factKm = all.filter((t) => t.date > from && t.date <= today).reduce((sum, t) => sum + t.km, 0);
+  const factSpent = allRepairs
+    .filter((r) => r.date > from && r.date <= today && r.kind !== 'upgrade' && !r.chargedTo)
+    .reduce((sum, r) => sum + r.amount, 0);
+
+  // кто что заплатил: заправки, расходы поездок, ремонты; «вскладчину на месте» — каждый оплатил свою долю сам
+  const refuelsMode = ctx.settings.fuelMode === 'refuels';
+  const paid: { paidBy: string | null; amount: number }[] = refuelsMode
+    ? yearRefuels.map((r) => ({ paidBy: r.paidBy, amount: zl(r.amount) }))
+    : [];
+  for (const r of yearRepairs) paid.push({ paidBy: r.paidBy, amount: r.amount });
+  for (const t of refuelsMode ? inYear : []) {
     if (!t.extras) continue;
-    if (t.extras.paidBy !== null || t.shared) paid.push({ paidBy: t.shared ? t.extras.paidBy : t.extras.paidBy, amount: t.extras.amount });
+    if (t.extras.paidBy !== null || t.shared) paid.push({ paidBy: t.extras.paidBy, amount: t.extras.amount });
     else for (const r of t.cost.riders) paid.push({ paidBy: r.memberId, amount: r.extras });
   }
 
-  const years = [...new Set([currentYear(), year, ...all.map((t) => t.date.slice(0, 4)), ...yearRefuels.map((r) => r.date.slice(0, 4))])]
+  const years = [...new Set([currentYear(), year, ...all.map((t) => t.date.slice(0, 4)), ...yearRefuels.map((r) => r.date.slice(0, 4)), ...allRepairs.map((r) => r.date.slice(0, 4))])]
     .sort()
     .reverse();
   return {
@@ -74,7 +113,21 @@ export async function money(db: Db, year = currentYear()): Promise<Money> {
     periods: ctx.periods,
     rates: ctx.ratesOf({ date: new Date().toISOString().slice(0, 10), odoStart: null, odoEnd: null }),
     summary,
-    fuel: ctx.settings.fuelMode === 'refuels' ? fuelLedger(summary, paid, yearTransfers.map(asZl)) : null,
+    ledger:
+      refuelsMode || yearRepairs.length || yearTransfers.length
+        ? ledger(
+            [
+              ...(refuelsMode ? fuelUsed(summary) : []),
+              ...yearRepairs.flatMap((r) => (r.split?.shares ?? []).map((sh) => ({ id: sh.memberId, amount: sh.amount }))),
+            ],
+            paid,
+            yearTransfers.map(asZl),
+          )
+        : null,
+    repairsByMember: [...repairsBy].map(([memberId, amount]) => ({ memberId, amount: Math.round(amount * 100) / 100 })),
+    reserve,
+    fact: { from, km: factKm, spent: Math.round(factSpent * 100) / 100, perKm: factKm >= 500 ? factSpent / factKm : null },
+    repairs: yearRepairs,
     intervals: ctx.intervals.filter((i) => i.toDate.startsWith(`${year}-`)),
     refuels: yearRefuels.map(asZl),
     transfers: yearTransfers.map(asZl),

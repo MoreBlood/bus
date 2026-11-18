@@ -2,7 +2,7 @@
 // Даты сдвигаются так, чтобы последняя поездка была несколько дней назад: демо всегда «свежее».
 import { randomUUID } from 'node:crypto';
 import type { Db } from './index.ts';
-import { members, refuels, tripRiders, trips } from './schema.ts';
+import { members, refuels, repairs, tripRiders, trips } from './schema.ts';
 
 const NAMES = ['Миша', 'Аня', 'Дима', 'Оля', 'Костя', 'Лёша', 'Женя', 'Ваня', 'Саша'];
 
@@ -39,6 +39,15 @@ const REFUELS: [string, number | null, number, number, number, boolean][] = [
   ['2026-09-20', 4, 57, 371, 180130, true],
   ['2026-11-02', 1, 30, 196, 180700, false],
   ['2026-11-09', null, 81, 527, 181160, true],
+];
+// [дата, тип, что сделали, сумма zł, кто платил (null — касса), одометр, по чьей вине]
+type RepairRow = [string, 'service' | 'repair' | 'tires' | 'other' | 'upgrade', string, number, number | null, number, number?];
+const REPAIRS: RepairRow[] = [
+  ['2026-04-05', 'service', 'Техосмотр, масло и фильтры', 1150, 0, 176440],
+  ['2026-08-02', 'repair', 'Отвалился патрубок интеркулера', 480, 4, 179760],
+  ['2026-09-01', 'upgrade', 'Бокс на крышу', 1400, 1, 180124],
+  ['2026-10-12', 'repair', 'Подвеска: стойки стабилизатора и сайлентблоки', 1900, null, 180430],
+  ['2026-10-28', 'other', 'Разбитое зеркало', 260, 2, 180470, 2],
 ];
 const LAST = '2026-11-14';
 
@@ -84,6 +93,19 @@ export async function seedDemo(db: Db, today = new Date()) {
       amount: zl * 100,
       odometer,
       full,
+      createdBy: 'demo',
+    })),
+  );
+  await db.insert(repairs).values(
+    REPAIRS.map(([date, kind, title, zl, who, odometer, fault]) => ({
+      id: randomUUID(),
+      date: shift(date, offset),
+      kind,
+      title,
+      amount: zl * 100,
+      paidBy: who === null ? null : ids[who],
+      chargedTo: fault === undefined ? null : ids[fault],
+      odometer,
       createdBy: 'demo',
     })),
   );

@@ -7,6 +7,7 @@ import { JournalPage } from '@pages/journal/JournalPage';
 import { MembersPage } from '@pages/members/MembersPage';
 import { MoneyPage } from '@pages/money/MoneyPage';
 import { RefuelPage } from '@pages/refuel/RefuelPage';
+import { RepairPage } from '@pages/repair/RepairPage';
 import { SetupPage } from '@pages/setup/SetupPage';
 import { TripPage } from '@pages/trip/TripPage';
 import { Theme } from '@radix-ui/themes';
@@ -50,7 +51,7 @@ function Dock() {
 function Shell() {
   const { pathname } = useLocation();
   const { error } = useSession();
-  const form = pathname.startsWith('/trips/') || pathname.startsWith('/refuels/');
+  const form = ['/trips/', '/refuels/', '/repairs/'].some((p) => pathname.startsWith(p));
   const cta = pathname === '/' || pathname === '/money';
   if (error)
     return (
@@ -75,6 +76,8 @@ function Shell() {
           <Route path="/money" element={<MoneyPage />} />
           <Route path="/refuels/new" element={<RefuelPage />} />
           <Route path="/refuels/:id" element={<RefuelPage />} />
+          <Route path="/repairs/new" element={<RepairPage />} />
+          <Route path="/repairs/:id" element={<RepairPage />} />
           <Route path="/members" element={<MembersPage />} />
           <Route path="/assistant" element={<AssistantPage />} />
           <Route path="*" element={<JournalPage />} />

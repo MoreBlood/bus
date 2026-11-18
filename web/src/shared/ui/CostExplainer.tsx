@@ -81,7 +81,7 @@ export function CostExplainer({
           </dd>
           <b>{zl(cost.amort)}</b>
           <p>
-            Износ, ТО, шины и потеря стоимости — копится в кассу.{' '}
+            Износ, ТО, шины и потеря стоимости — копится в резерв на ремонт.{' '}
             {period.basis
               ? `${zl(basisSum)} в год ÷ ${num(period.basis.kmPerYear)} км в год; ${periodLine(period)}.`
               : `${cap(periodLine(period))}.`}
