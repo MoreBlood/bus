@@ -3,11 +3,26 @@
   "framework": null,
   "buildCommand": "npm run build",
   "outputDirectory": "public",
+  "regions": [
+    "dub1"
+  ],
   "ignoreCommand": "[ \"$VERCEL_ENV\" != \"production\" ]",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api" },
-    { "source": "/mcp", "destination": "/api" },
-    { "source": "/.well-known/:path*", "destination": "/api" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/:path*",
+      "destination": "/api"
+    },
+    {
+      "source": "/mcp",
+      "destination": "/api"
+    },
+    {
+      "source": "/.well-known/:path*",
+      "destination": "/api"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }
