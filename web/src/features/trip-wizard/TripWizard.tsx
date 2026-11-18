@@ -1,10 +1,11 @@
 // Запись поездки по шагам: кто ехал → когда → сколько проехали → проверка с деньгами.
 // Один вопрос на экран, «Далее» у большого пальца. Правка готовой поездки открывается сразу на проверке.
 import { AlertDialog, Button, Flex, SegmentedControl, Switch, TextField } from '@radix-ui/themes';
-import type { FuelMode, Journal, Member, Rates, Rider, Trip, TripInput } from '@shared/api/types';
-import { previewCost } from '@shared/lib/cost';
+import type { Journal, Member, Rider, Trip, TripInput } from '@shared/api/types';
+import { intervalFor, periodFor, previewCost, tripRates } from '@shared/lib/cost';
 import { dateRange, guestsLabel, longDate, num, today, zl } from '@shared/lib/format';
-import { Pictogram } from '@shared/ui/Pictogram';
+import { CostExplainer } from '@shared/ui/CostExplainer';
+import { Glyph, Pictogram } from '@shared/ui/Pictogram';
 import { SignButton } from '@shared/ui/SignButton';
 import { DateQuick, Stepper, StepQuestion, WizardProgress } from '@shared/ui/Wizard';
 import { type FormEvent, useId, useMemo, useState } from 'react';
@@ -17,14 +18,25 @@ const toInt = (s: string) => {
   const v = Number(s.replace(/\s/g, ''));
   return s.trim() !== '' && Number.isFinite(v) ? Math.round(v) : null;
 };
+const toMoney = (s: string) => {
+  const v = Number(s.replace(/\s/g, '').replace(',', '.'));
+  return s.trim() !== '' && Number.isFinite(v) ? Math.round(v * 100) / 100 : null;
+};
+
+/** Пропущенные км из разрыва одометра: мастер открывается с этими показаниями. */
+export interface TripPrefill {
+  date?: string;
+  odoStart?: number;
+  odoEnd?: number;
+}
 
 export function TripWizard({
   trip,
   step,
   setStep,
   last,
-  rates,
-  fuelMode,
+  costs,
+  prefill,
   members,
   meId,
   busy,
@@ -36,8 +48,9 @@ export function TripWizard({
   step: Step;
   setStep: (s: Step) => void;
   last: Journal['lastOdometer'];
-  rates: Rates;
-  fuelMode: FuelMode;
+  /** от чего зависят деньги: периоды ставок, режим и тип топлива, полные баки */
+  costs: Pick<Journal, 'periods' | 'settings' | 'intervals'>;
+  prefill?: TripPrefill;
   members: Member[];
   meId: string | null;
   busy: boolean;
@@ -45,7 +58,15 @@ export function TripWizard({
   onSubmit: (input: TripInput) => void;
   onDelete?: () => void;
 }) {
-  const ids = { start: useId(), finish: useId(), km: useId(), note: useId(), end: useId() };
+  const ids = {
+    start: useId(),
+    finish: useId(),
+    km: useId(),
+    note: useId(),
+    end: useId(),
+    exAmount: useId(),
+    exNote: useId(),
+  };
   const isNew = !trip;
   const byId = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
   const choices = useMemo(() => {
@@ -56,18 +77,38 @@ export function TripWizard({
 
   const [shared, setShared] = useState(trip?.shared ?? false);
   const [riders, setRiders] = useState<Rider[]>(
-    trip ? trip.riders : meId ? [{ memberId: meId, guests: 0 }] : [],
+    // пропущенные км: кто ездил — неизвестно, не подставляем себя
+    trip ? trip.riders : meId && !prefill ? [{ memberId: meId, guests: 0 }] : [],
   );
-  const [date, setDate] = useState(trip?.date ?? today());
+  const [date, setDate] = useState(trip?.date ?? prefill?.date ?? today());
   const [multiDay, setMultiDay] = useState(!!trip?.endDate);
   const [endDate, setEndDate] = useState(trip?.endDate ?? '');
   const [mode, setMode] = useState<Mode>(trip && trip.odoStart === null ? 'km' : 'odo');
   const [start, setStart] = useState(
-    trip?.odoStart != null ? String(trip.odoStart) : isNew && last ? String(last.km) : '',
+    trip?.odoStart != null
+      ? String(trip.odoStart)
+      : prefill?.odoStart != null
+        ? String(prefill.odoStart)
+        : isNew && last
+          ? String(last.km)
+          : '',
   );
-  const [finish, setFinish] = useState(trip?.odoEnd != null ? String(trip.odoEnd) : '');
+  const [finish, setFinish] = useState(
+    trip?.odoEnd != null
+      ? String(trip.odoEnd)
+      : prefill?.odoEnd != null
+        ? String(prefill.odoEnd)
+        : '',
+  );
   const [kmText, setKmText] = useState(trip && trip.odoStart === null ? String(trip.km) : '');
   const [note, setNote] = useState(trip?.note ?? '');
+  // расходы в дороге: платные дороги, парковки, паром — делятся вместе с поездкой
+  const [extrasOpen, setExtrasOpen] = useState(false);
+  const [exAmount, setExAmount] = useState(trip?.extras ? String(trip.extras.amount) : '');
+  const [exPaidBy, setExPaidBy] = useState<string | null>(
+    trip?.extras ? trip.extras.paidBy : (meId ?? null),
+  );
+  const [exNote, setExNote] = useState(trip?.extras?.note ?? '');
 
   const toggleRider = (id: string) =>
     setRiders((rs) =>
@@ -76,30 +117,57 @@ export function TripWizard({
         : [...rs, { memberId: id, guests: 0 }],
     );
   const setGuests = (id: string, guests: number) =>
-    setRiders((rs) => rs.map((r) => (r.memberId === id ? { ...r, guests } : r)));
+    setRiders((rs) =>
+      rs.map((r) => (r.memberId === id ? { ...r, guests, absent: guests > 0 && r.absent } : r)),
+    );
+  // «Ехали все»: одним касанием отметить всех, потом снять тех, кто не ехал
+  const allIn = choices.length > 0 && choices.every((m) => riders.some((r) => r.memberId === m.id));
+  const toggleAll = () =>
+    setRiders((rs) =>
+      allIn
+        ? []
+        : choices.map((m) => rs.find((r) => r.memberId === m.id) ?? { memberId: m.id, guests: 0 }),
+    );
+  const setAbsent = (id: string, absent: boolean) =>
+    setRiders((rs) => rs.map((r) => (r.memberId === id ? { ...r, absent } : r)));
+  const nameOf = (id: string) => byId.get(id)?.name ?? 'Участник';
 
   const s = toInt(start);
   const f = toInt(finish);
   const km = mode === 'odo' ? (s !== null && f !== null ? f - s : null) : toInt(kmText);
   const odoBad = mode === 'odo' && s !== null && f !== null && f <= s;
-  const gap = isNew && mode === 'odo' && last && s !== null ? s - last.km : 0;
-  const cost = previewCost(km && km > 0 ? km : 0, shared, riders, rates);
+  // пропущенные км записываем задним числом — сравнивать с последней записью незачем
+  const gap = isNew && !prefill && mode === 'odo' && last && s !== null ? s - last.km : 0;
+
+  const place = { date, odoStart: mode === 'odo' ? s : null, odoEnd: mode === 'odo' ? f : null };
+  const rates = tripRates(place, costs.periods, costs.settings, costs.intervals);
+  const period = periodFor(costs.periods, date);
+  const interval = rates.source === 'period' ? undefined : intervalFor(place, costs.intervals);
+  const exValue = toMoney(exAmount);
+  const exBad = exAmount.trim() !== '' && (exValue === null || exValue <= 0 || exValue > 100_000);
+  // кто платил: участник поездки (в общей — любой) или вскладчину/касса
+  const payers = shared ? choices : choices.filter((m) => riders.some((r) => r.memberId === m.id));
+  const payer = exPaidBy && payers.some((m) => m.id === exPaidBy) ? exPaidBy : null;
+  const extras = exValue && exValue > 0 && !exBad ? exValue : 0;
+  const cost = previewCost(km && km > 0 ? km : 0, shared, riders, rates, extras);
 
   const valid: Record<Step, boolean> = {
-    0: shared || riders.length > 0,
+    0: shared || (riders.length > 0 && riders.some((r) => !r.absent || r.guests > 0)),
     1: !!date && (!multiDay || !endDate || endDate >= date),
     2: km !== null && km > 0 && !odoBad,
-    3: true,
+    3: !exBad,
   };
 
   const whoLabel = shared
     ? 'По делам буса'
     : riders
-        .map(
-          (r) =>
-            `${byId.get(r.memberId)?.name ?? 'Участник'}${r.guests ? ` + ${guestsLabel(r.guests)}` : ''}`,
+        .map((r) =>
+          r.absent
+            ? `${guestsLabel(r.guests)}, позвал(а) ${nameOf(r.memberId)}`
+            : `${nameOf(r.memberId)}${r.guests ? ` + ${guestsLabel(r.guests)}` : ''}`,
         )
         .join(', ');
+  const payerLabel = payer ? nameOf(payer) : shared ? 'из кассы' : 'вскладчину';
 
   const next = (e: FormEvent) => {
     e.preventDefault();
@@ -110,11 +178,12 @@ export function TripWizard({
       date,
       endDate: multiDay && endDate ? endDate : null,
       shared,
-      riders: riders.map((r) => (shared ? { ...r, guests: 0 } : r)),
+      riders: riders.map((r) => (shared ? { ...r, guests: 0, absent: false } : r)),
       odoStart: mode === 'odo' ? s : null,
       odoEnd: mode === 'odo' ? f : null,
       km: mode === 'km' ? km : null,
       note: note.trim(),
+      extras: extras ? { amount: extras, paidBy: payer, note: exNote.trim() } : null,
     });
   };
 
@@ -127,13 +196,25 @@ export function TripWizard({
           <>
             <StepQuestion
               hint={
-                shared
-                  ? 'Стоимость — из общей кассы. Можно отметить, кто ездил.'
-                  : 'Отметьте всех владельцев в машине. Гостей добавьте тому, кто их позвал.'
+                prefill?.odoStart != null && prefill.odoEnd != null
+                  ? `Никто не записал ${num(prefill.odoEnd - prefill.odoStart)} км: ${num(prefill.odoStart)} → ${num(prefill.odoEnd)}. Если помните, кто ездил, — отметьте; если это перегон или ТО — «По делам буса».`
+                  : shared
+                    ? 'Стоимость — из общей кассы. Можно отметить, кто ездил.'
+                    : 'Отметьте всех владельцев в машине. Гостей добавьте тому, кто их позвал.'
               }
             >
               Кто ехал?
             </StepQuestion>
+            <div className="who-all">
+              <span>
+                {riders.length
+                  ? `Отмечено ${riders.length} из ${choices.length}`
+                  : 'Никто не отмечен'}
+              </span>
+              <button type="button" className="text-button" onClick={toggleAll}>
+                {allIn ? 'Снять всех' : 'Ехали все'}
+              </button>
+            </div>
             <div className="who" role="group" aria-label="Владельцы в поездке">
               {choices.map((m) => (
                 <button
@@ -157,8 +238,25 @@ export function TripWizard({
                     <span>
                       <b>{byId.get(r.memberId)?.name}</b>
                       <small>
-                        {r.guests ? `позвал(а) ${guestsLabel(r.guests)}` : 'без гостей'}
+                        {!r.guests
+                          ? 'без гостей'
+                          : r.absent
+                            ? `отдал(а) бус: ${guestsLabel(r.guests)}`
+                            : `позвал(а) ${guestsLabel(r.guests)}`}
                       </small>
+                      {r.guests > 0 && (
+                        <button
+                          type="button"
+                          className="absent-toggle"
+                          aria-pressed={!!r.absent}
+                          onClick={() => setAbsent(r.memberId, !r.absent)}
+                        >
+                          <span className="absent-toggle__box" aria-hidden>
+                            {r.absent && <Glyph name="check" size={14} />}
+                          </span>
+                          Сам(а) не ехал(а)
+                        </button>
+                      )}
                     </span>
                     <Stepper
                       value={r.guests}
@@ -261,7 +359,7 @@ export function TripWizard({
                     />
                   </div>
                 </div>
-                {isNew && last && (
+                {isNew && !prefill && last && (
                   <p className="field__hint">
                     Последняя запись: {num(last.km)} км, {longDate(last.date)}.
                     {s !== last.km && (
@@ -360,7 +458,91 @@ export function TripWizard({
                   Изменить
                 </button>
               </div>
+              <div>
+                <dt>Расходы в дороге</dt>
+                <dd>
+                  {extras
+                    ? `${zl(extras)} · ${exNote.trim() ? `${exNote.trim()} · ` : ''}${payerLabel}`
+                    : 'нет'}
+                </dd>
+                <button
+                  type="button"
+                  className="inline-link"
+                  aria-expanded={extrasOpen}
+                  onClick={() => setExtrasOpen((v) => !v)}
+                >
+                  {extrasOpen ? 'Готово' : extras ? 'Изменить' : 'Добавить'}
+                </button>
+              </div>
             </dl>
+
+            {extrasOpen && (
+              <div className="extras-editor">
+                <div className="odo-pair">
+                  <div>
+                    <label htmlFor={ids.exAmount}>Сколько, zł</label>
+                    <input
+                      id={ids.exAmount}
+                      className="num-input"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      placeholder="40"
+                      value={exAmount}
+                      aria-invalid={exBad || undefined}
+                      autoFocus
+                      onChange={(e) => setExAmount(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor={ids.exNote}>За что</label>
+                    <TextField.Root
+                      id={ids.exNote}
+                      className="text-input"
+                      size="3"
+                      maxLength={120}
+                      placeholder="A2, парковка"
+                      value={exNote}
+                      onChange={(e) => setExNote(e.target.value)}
+                    />
+                  </div>
+                </div>
+                {exBad && (
+                  <p className="field__hint field__hint--error">Сумма — число больше нуля</p>
+                )}
+                <span className="field__label" style={{ margin: '14px 0 8px' }}>
+                  Кто платил
+                </span>
+                <div className="who who--two" role="group" aria-label="Кто платил">
+                  {payers.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      className="who__option"
+                      aria-pressed={payer === m.id}
+                      onClick={() => setExPaidBy(m.id)}
+                    >
+                      <span>{m.name}</span>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="who__option"
+                    aria-pressed={payer === null}
+                    onClick={() => setExPaidBy(null)}
+                  >
+                    <span>{shared ? 'Из кассы' : 'Вскладчину'}</span>
+                  </button>
+                </div>
+                <p className="field__hint">
+                  Платные дороги, парковки, паром — делятся вместе с поездкой.{' '}
+                  {shared
+                    ? ''
+                    : payer
+                      ? 'Кто платил — тому отдают остальные доли.'
+                      : 'Вскладчину — каждый уже заплатил свою долю на месте.'}
+                </p>
+              </div>
+            )}
 
             <section className="cost-sign" aria-label="Стоимость поездки">
               <div className="cost-sign__head">
@@ -368,7 +550,8 @@ export function TripWizard({
                 <b>{zl(cost.total)}</b>
               </div>
               <p className="cost-sign__split">
-                амортизация {zl(cost.amort)} + бензин {zl(cost.fuel)}
+                амортизация {zl(cost.amort)} + топливо {zl(cost.fuel)}
+                {cost.extras ? ` + в дороге ${zl(cost.extras)}` : ''}
               </p>
               {shared ? (
                 <p className="cost-sign__note">Поездка по делам буса — платит общая касса.</p>
@@ -378,8 +561,9 @@ export function TripWizard({
                     {cost.riders.map((r) => (
                       <li key={r.memberId}>
                         <span>
-                          {byId.get(r.memberId)?.name}
-                          {r.guests ? ` и ${guestsLabel(r.guests)}` : ''}
+                          {r.absent
+                            ? `${guestsLabel(r.guests)}, позвал(а) ${nameOf(r.memberId)}`
+                            : `${nameOf(r.memberId)}${r.guests ? ` и ${guestsLabel(r.guests)}` : ''}`}
                         </span>
                         <b>{zl(r.total)}</b>
                       </li>
@@ -387,12 +571,23 @@ export function TripWizard({
                   </ul>
                   <p className="cost-sign__note">
                     {cost.heads > 1 ? `По ${zl(cost.perHead)} с человека. ` : ''}
-                    {fuelMode === 'rate'
-                      ? `Бензин ${zl(cost.fuel)} рассчитайте в поездке${cost.heads > 1 ? ` — по ${zl(cost.fuel / cost.heads)}` : ''}; амортизация идёт в кассу.`
-                      : 'Бензин и амортизация учтутся в «Деньгах»: кто заправлял — тому вернут.'}
+                    {costs.settings.fuelMode === 'rate'
+                      ? `Бак на бак: топливо ${zl(cost.fuel)} делите на месте${cost.heads > 1 ? ` — по ${zl(cost.fuel / cost.heads)}` : ''}; амортизация идёт в кассу.`
+                      : 'Всё учтётся в «Деньгах»: кто заправлял или платил в дороге — тому вернут.'}
                   </p>
                 </>
               )}
+              <CostExplainer
+                km={km && km > 0 ? km : 0}
+                cost={cost}
+                rates={rates}
+                period={period}
+                interval={interval}
+                settings={costs.settings}
+                shared={shared}
+                extras={extras ? { paidBy: payer, note: exNote.trim() } : null}
+                nameOf={nameOf}
+              />
             </section>
 
             <div style={{ marginTop: 24 }}>

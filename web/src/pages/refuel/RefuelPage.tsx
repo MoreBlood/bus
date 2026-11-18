@@ -7,7 +7,7 @@ import {
   fetchRefuel,
   updateRefuel,
 } from '@shared/api/client';
-import type { Refuel, RefuelInput } from '@shared/api/types';
+import type { FuelType, Refuel, RefuelInput } from '@shared/api/types';
 import { longDate } from '@shared/lib/format';
 import { useSession } from '@shared/model/session';
 import { Topbar } from '@widgets/topbar/Topbar';
@@ -20,6 +20,7 @@ export function RefuelPage() {
   const { members, viewer, loading } = useSession();
   const [refuel, setRefuel] = useState<Refuel | null | undefined>(id ? undefined : null);
   const [lastOdo, setLastOdo] = useState<number | null | undefined>(id ? null : undefined);
+  const [fuelType, setFuelType] = useState<FuelType>('diesel');
   const [step, setStep] = useState<0 | 1>(id ? 1 : 0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,10 +30,15 @@ export function RefuelPage() {
       fetchRefuel(id)
         .then(setRefuel)
         .catch((e) => setError(errorText(e)));
-    else
-      fetchJournal()
-        .then((j) => setLastOdo(j.lastOdometer?.km ?? null))
-        .catch(() => setLastOdo(null));
+    // последнее показание одометра и чем заправляем (литры или кВт·ч)
+    fetchJournal()
+      .then((j) => {
+        if (!id) setLastOdo(j.lastOdometer?.km ?? null);
+        setFuelType(j.settings.fuelType);
+      })
+      .catch(() => {
+        if (!id) setLastOdo(null);
+      });
   }, [id]);
 
   const done = () => navigate('/money');
@@ -66,6 +72,7 @@ export function RefuelPage() {
             step={step}
             setStep={setStep}
             lastOdometer={lastOdo ?? null}
+            fuelType={fuelType}
             members={members}
             meId={viewer?.memberId ?? null}
             busy={busy}

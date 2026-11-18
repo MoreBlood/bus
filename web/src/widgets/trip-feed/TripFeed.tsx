@@ -89,7 +89,16 @@ function IssueRow({ issue, trips }: { issue: OdometerIssue; trips: Trip[] }) {
         )}
         <span className="issue-row__meta">
           одометр {num(issue.fromOdo)} → {num(issue.toOdo)}
+          {issue.kind === 'gap' ? ' · пока их везёт касса' : ''}
         </span>
+        {issue.kind === 'gap' && (
+          <Link
+            className="inline-link issue-row__action"
+            to={`/trips/new?from=${issue.fromOdo}&to=${issue.toOdo}&date=${issue.date}`}
+          >
+            Записать эти км
+          </Link>
+        )}
       </span>
     </li>
   );

@@ -22,6 +22,13 @@
       "when": 1795008881059,
       "tag": "0002_riders_refuels",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1795013535133,
+      "tag": "0003_rate_periods_extras",
+      "breakpoints": true
     }
   ]
 }

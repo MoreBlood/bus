@@ -156,6 +156,8 @@ export function createApp({ service, auth }: { service: Service; auth: Auth | nu
   api.get('/money', async (c) => c.json(await service.money(c.req.query('year') || undefined)));
   api.get('/settings', async (c) => c.json(await service.settings()));
   api.post('/settings', async (c) => c.json(await service.saveSettings(c.get('viewer'), await body(c))));
+  api.post('/rates', async (c) => c.json(await service.savePeriod(c.get('viewer'), await body(c))));
+  api.post('/rates/delete', async (c) => c.json(await service.deletePeriod(c.get('viewer'), (await body(c)).id)));
   api.get('/refuels/:id', async (c) => c.json(await service.refuel(c.req.param('id'))));
   api.post('/refuels', async (c) => c.json(await service.createRefuel(c.get('viewer'), await body(c))));
   api.post('/refuels/update', async (c) => c.json(await service.updateRefuel(c.get('viewer'), await body(c))));

@@ -4,6 +4,7 @@
 import {
   ArrowLeft,
   ArrowRight,
+  Calculator,
   Check,
   Copy,
   ExclamationMark,
@@ -12,7 +13,9 @@ import {
   type Icon,
   type IconWeight,
   Key,
+  Minus,
   Plus,
+  Receipt,
   User,
   Users,
   Van,
@@ -29,6 +32,11 @@ const ICONS = {
   // общая поездка: двое
   people: [Users, 'fill'],
   plus: [Plus, 'bold'],
+  minus: [Minus, 'bold'],
+  // расходы в дороге: чек
+  receipt: [Receipt, 'fill'],
+  // помощник ставки амортизации
+  calculator: [Calculator, 'fill'],
   key: [Key, 'fill'],
   copy: [Copy, 'bold'],
   check: [Check, 'bold'],

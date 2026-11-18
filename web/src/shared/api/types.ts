@@ -23,23 +23,77 @@ export interface Rider {
   memberId: string;
   /** гости, которых он позвал: их доля записывается на него */
   guests: number;
+  /** сам не ехал — отдал бус гостям: доли только у гостей, день — его */
+  absent?: boolean;
 }
 
 export interface RiderShare extends Rider {
+  absent: boolean;
+  /** сколько долей на нём: он сам (если ехал) + гости */
   heads: number;
   km: number;
   days: number;
   amort: number;
   fuel: number;
+  extras: number;
+}
+
+export type FuelMode = 'rate' | 'refuels';
+export type FuelType = 'diesel' | 'petrol' | 'lpg' | 'electric';
+
+export interface CostSettings {
+  fuelMode: FuelMode;
+  fuelType: FuelType;
+}
+
+/** Из чего сложена ставка амортизации: статьи в zł за год и пробег в год. */
+export interface AmortBasis {
+  items: { label: string; perYear: number }[];
+  kmPerYear: number;
+}
+
+/** Ставки, действующие с даты: прошлые поездки считаются по своим периодам. */
+export interface RatePeriod {
+  id: string;
+  validFrom: string;
+  amortPerKm: number;
+  /** расход на 100 км в единицах топлива (л или кВт·ч) */
+  fuelPer100: number;
+  /** цена единицы топлива, zł */
+  fuelPrice: number;
+  basis: AmortBasis | null;
+  createdBy: string | null;
+  createdAt: string | null;
+}
+
+/** Ставки конкретной поездки и откуда они взялись. */
+export interface TripRates {
+  amortPerKm: number;
+  fuelPerKm: number;
+  per100: number;
+  unitPrice: number;
+  /** period — по ставке периода; refuels — по заправкам этого бака; refuels-nearest — по ближайшему баку */
+  source: 'period' | 'refuels' | 'refuels-nearest';
+  periodFrom: string;
 }
 
 export interface TripCost {
   heads: number;
   amort: number;
   fuel: number;
+  extras: number;
   total: number;
   perHead: number;
   riders: RiderShare[];
+  rates: TripRates;
+}
+
+export interface TripExtras {
+  /** zł */
+  amount: number;
+  /** null — вскладчину на месте (каждый за свою долю) */
+  paidBy: string | null;
+  note: string;
 }
 
 export interface Trip {
@@ -49,6 +103,8 @@ export interface Trip {
   /** по делам буса: платит общая касса */
   shared: boolean;
   riders: Rider[];
+  /** дороги, парковки, паром — сверх км */
+  extras: TripExtras | null;
   cost: TripCost;
   km: number;
   odoStart: number | null;
@@ -60,21 +116,6 @@ export interface Trip {
   updatedAt: string | null;
 }
 
-export type FuelMode = 'rate' | 'refuels';
-
-export interface CostSettings {
-  amortPerKm: number;
-  fuelPer100: number;
-  fuelPrice: number;
-  fuelMode: FuelMode;
-}
-
-export interface Rates {
-  amortPerKm: number;
-  fuelPerKm: number;
-  fuelSource: 'settings' | 'refuels';
-}
-
 export interface MemberMoney {
   memberId: string;
   km: number;
@@ -83,11 +124,35 @@ export interface MemberMoney {
   guests: number;
   amort: number;
   fuel: number;
+  extras: number;
 }
 
 export interface MoneySummary {
   members: MemberMoney[];
-  fund: { km: number; amort: number; fuel: number };
+  fund: {
+    km: number;
+    amort: number;
+    fuel: number;
+    extras: number;
+    /** км по разрывам одометра: никто не записал — везёт касса */
+    unrecordedKm: number;
+    unrecorded: number;
+    unrecordedFuel: number;
+  };
+}
+
+/** Отрезок между двумя полными баками. */
+export interface FuelInterval {
+  fromOdo: number;
+  toOdo: number;
+  fromDate: string;
+  toDate: string;
+  units: number;
+  amount: number;
+  km: number;
+  perKm: number;
+  per100: number;
+  unitPrice: number;
 }
 
 export interface OdometerIssue {
@@ -111,8 +176,12 @@ export interface Journal {
     trips: number;
     guests: number;
   };
-  rates: Rates;
+  /** ставки на сегодня */
+  rates: TripRates;
   settings: CostSettings;
+  periods: RatePeriod[];
+  /** отрезки между полными баками (все годы) */
+  intervals: FuelInterval[];
   issues: OdometerIssue[];
   lastOdometer: { km: number; date: string } | null;
 }
@@ -159,12 +228,23 @@ export interface Money {
   year: string;
   years: string[];
   settings: CostSettings;
-  rates: Rates;
+  periods: RatePeriod[];
+  /** ставки на сегодня */
+  rates: TripRates;
   summary: MoneySummary;
   fuel: { accounts: FuelAccount[]; settlements: Settlement[] } | null;
-  consumption: number | null;
+  /** отрезки между полными баками этого года */
+  intervals: FuelInterval[];
   refuels: Refuel[];
   transfers: Transfer[];
+}
+
+export interface PeriodInput {
+  validFrom: string;
+  amortPerKm: number;
+  fuelPer100: number;
+  fuelPrice: number;
+  basis: AmortBasis | null;
 }
 
 export interface RefuelInput {
@@ -205,6 +285,7 @@ export interface TripInput {
   odoEnd: number | null;
   km: number | null;
   note: string;
+  extras?: TripExtras | null;
 }
 
 export interface MemberInput {

@@ -1,4 +1,4 @@
-import { TripWizard } from '@features/trip-wizard/TripWizard';
+import { type TripPrefill, TripWizard } from '@features/trip-wizard/TripWizard';
 import {
   createTrip,
   deleteTrip,
@@ -12,13 +12,27 @@ import { longDate } from '@shared/lib/format';
 import { useSession } from '@shared/model/session';
 import { Topbar } from '@widgets/topbar/Topbar';
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 type Step = 0 | 1 | 2 | 3;
 
 export function TripPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  // «Записать эти км» из разрыва одометра: /trips/new?from=…&to=…&date=…
+  const [params] = useSearchParams();
+  const [prefill] = useState<TripPrefill | undefined>(() => {
+    const from = Number(params.get('from'));
+    const to = Number(params.get('to'));
+    const date = params.get('date') ?? undefined;
+    return !id && from > 0 && to > from
+      ? {
+          odoStart: from,
+          odoEnd: to,
+          date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined,
+        }
+      : undefined;
+  });
   const { members, viewer, loading } = useSession();
   const [trip, setTrip] = useState<Trip | null | undefined>(id ? undefined : null);
   const [journal, setJournal] = useState<Journal | null>(null);
@@ -33,7 +47,7 @@ export function TripPage() {
         .catch((e) => setError(errorText(e)));
   }, [id]);
   // ставки и последнее показание одометра — из журнала года поездки
-  const year = trip?.date.slice(0, 4);
+  const year = trip?.date.slice(0, 4) ?? prefill?.date?.slice(0, 4);
   useEffect(() => {
     if (id && !year) return;
     fetchJournal(year)
@@ -101,8 +115,8 @@ export function TripPage() {
             step={step}
             setStep={setStep}
             last={trip ? null : journal.lastOdometer}
-            rates={journal.rates}
-            fuelMode={journal.settings.fuelMode}
+            costs={journal}
+            prefill={prefill}
             members={members}
             meId={viewer?.memberId ?? null}
             busy={busy}

@@ -1,6 +1,7 @@
 // Заправка по шагам: кто заплатил и когда → сколько залили.
 import { AlertDialog, Button, Flex, Switch, TextField } from '@radix-ui/themes';
-import type { Member, Refuel, RefuelInput } from '@shared/api/types';
+import type { FuelType, Member, Refuel, RefuelInput } from '@shared/api/types';
+import { FUEL_TYPES } from '@shared/lib/cost';
 import { longDate, num, today, zlRate } from '@shared/lib/format';
 import { Pictogram } from '@shared/ui/Pictogram';
 import { SignButton } from '@shared/ui/SignButton';
@@ -18,6 +19,7 @@ export function RefuelWizard({
   step,
   setStep,
   lastOdometer,
+  fuelType,
   members,
   meId,
   busy,
@@ -29,6 +31,7 @@ export function RefuelWizard({
   step: 0 | 1;
   setStep: (s: 0 | 1) => void;
   lastOdometer: number | null;
+  fuelType: FuelType;
   members: Member[];
   meId: string | null;
   busy: boolean;
@@ -37,6 +40,7 @@ export function RefuelWizard({
   onDelete?: () => void;
 }) {
   const ids = { liters: useId(), amount: useId(), odo: useId(), note: useId() };
+  const fuel = FUEL_TYPES[fuelType];
   const isNew = !refuel;
   const choices = useMemo(
     () =>
@@ -121,7 +125,7 @@ export function RefuelWizard({
             <StepQuestion>Сколько залили?</StepQuestion>
             <div className="odo-pair">
               <div>
-                <label htmlFor={ids.liters}>Литры</label>
+                <label htmlFor={ids.liters}>{fuel.unit === 'л' ? 'Литры' : fuel.unit}</label>
                 <input
                   id={ids.liters}
                   className="num-input"
@@ -151,10 +155,10 @@ export function RefuelWizard({
               {l && a ? (
                 <span className="readout__value">
                   {zlRate(a / l)}
-                  <small>за литр</small>
+                  <small>за {fuel.unitWord}</small>
                 </span>
               ) : (
-                <span className="readout__empty">Цена литра посчитается здесь</span>
+                <span className="readout__empty">Цена за {fuel.unitWord} посчитается здесь</span>
               )}
             </div>
             <div style={{ marginTop: 16 }}>
@@ -179,7 +183,7 @@ export function RefuelWizard({
             <label className="switch-row" style={{ marginTop: 12 }}>
               <span>
                 До полного бака
-                <small>По полным заправкам виден честный расход</small>
+                <small>Два полных бака с одометром — и видно честный расход и цену км</small>
               </span>
               <Switch
                 size="3"
@@ -218,8 +222,8 @@ export function RefuelWizard({
                   <AlertDialog.Content maxWidth="420px">
                     <AlertDialog.Title>Удалить заправку?</AlertDialog.Title>
                     <AlertDialog.Description size="3">
-                      {refuel.liters} л, {longDate(refuel.date)}. Расчёт бензина пересчитается у
-                      всех.
+                      {refuel.liters} {fuel.unit}, {longDate(refuel.date)}. Расчёт топлива
+                      пересчитается у всех.
                     </AlertDialog.Description>
                     <Flex gap="3" mt="5" justify="end">
                       <AlertDialog.Cancel>

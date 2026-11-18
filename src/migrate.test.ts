@@ -12,6 +12,7 @@ for (const k of Object.keys(process.env)) if (k.endsWith('TURSO_DATABASE_URL')) 
 const { createClient } = await import('@libsql/client');
 const { connection } = await import('./db/index.ts');
 const { migrateAll } = await import('./migrate.ts');
+const { DEMO_COUNTS } = await import('./db/demo.ts');
 
 const count = async (sql: string) => {
   const c = createClient({ url: connection().url });
@@ -28,7 +29,7 @@ describe('превью-база', () => {
   it('пустая база получает схему и демо-данные', async () => {
     await migrateAll({ preview: true });
     assert.equal(await count('SELECT count(*) FROM members'), 9);
-    assert.equal(await count('SELECT count(*) FROM trips'), 11);
+    assert.equal(await count('SELECT count(*) FROM trips'), DEMO_COUNTS.trips);
   });
 
   it('повторная сборка не дублирует демо-данные', async () => {
@@ -44,6 +45,6 @@ describe('превью-база', () => {
     await migrateAll({ preview: true });
     assert.equal(await count("SELECT count(*) FROM __drizzle_migrations WHERE hash = 'hash-from-another-branch'"), 0);
     assert.equal(await count("SELECT count(*) FROM trips WHERE id = 'extra'"), 0);
-    assert.equal(await count('SELECT count(*) FROM trips'), 11);
+    assert.equal(await count('SELECT count(*) FROM trips'), DEMO_COUNTS.trips);
   });
 });

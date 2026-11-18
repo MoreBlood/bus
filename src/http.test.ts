@@ -111,7 +111,7 @@ describe('HTTP API', () => {
 });
 
 describe('деньги', () => {
-  it('гости на пригласившем, учёт заправок, долги сходятся и гасятся переводом', async () => {
+  it('гости на пригласившем, учёт заправок по полным бакам, долг гасится переводом', async () => {
     const boris = (await post('/api/members', { name: 'Борис' })).body.id;
     const misha = (await post('/api/members', { name: 'Миша' })).body.id;
     // Борис позвал двоих гостей, Миша поехал сам: 4 человека, доля Бориса — 3/4
@@ -121,29 +121,42 @@ describe('деньги', () => {
         { memberId: boris, guests: 2 },
         { memberId: misha, guests: 0 },
       ],
-      km: 400,
+      odoStart: 5000,
+      odoEnd: 5400,
+      extras: { amount: 40, paidBy: misha, note: 'парковка' },
     });
-    assert.equal(trip.status, 200);
-    assert.equal((await post('/api/settings', { fuelMode: 'refuels', amortPerKm: 0.25 })).status, 200);
-    assert.equal((await post('/api/refuels', { date: '2026-12-01', liters: 40, amount: 300, paidBy: misha })).status, 200);
+    assert.equal(trip.status, 200, JSON.stringify(trip.body));
+    assert.equal((await post('/api/settings', { fuelMode: 'refuels', fuelType: 'diesel' })).status, 200);
+    // полный бак до и после поездки: израсходовано то, что залили во второй раз
+    await post('/api/refuels', { date: '2026-11-30', liters: 40, amount: 260, paidBy: misha, odometer: 5000, full: true });
+    await post('/api/refuels', { date: '2026-12-02', liters: 44, amount: 300, paidBy: misha, odometer: 5400, full: true });
 
     const m = (await get('/api/money?year=2026')).body;
-    assert.equal(m.rates.fuelSource, 'refuels');
+    const t = (await get('/api/journal?year=2026')).body.trips.find((x: { id: string }) => x.id === trip.body.id);
+    assert.equal(t.cost.rates.source, 'refuels');
+    assert.ok(Math.abs(t.cost.fuel - 300) < 0.01, `топливо поездки = закрывающий бак: ${t.cost.fuel}`);
     const b = m.summary.members.find((x: { memberId: string }) => x.memberId === boris);
     assert.equal(b.guests, 2);
     assert.ok(Math.abs(b.km - 300) < 0.01);
-    const sum = m.fuel.accounts.reduce((acc: number, a: { balance: number }) => acc + a.balance, 0);
-    assert.ok(Math.abs(sum) < 0.05, `балансы сходятся: ${sum}`);
-    const toMisha = m.fuel.settlements.find((x: { to: string }) => x.to === misha);
-    assert.ok(toMisha, 'Мише должны за бензин');
+    const fromBoris = m.fuel.settlements.find((x: { from: string; to: string }) => x.from === boris && x.to === misha);
+    assert.ok(fromBoris, 'Борис должен Мише за топливо и парковку');
+    assert.equal(fromBoris.amount, 255); // 3/4 × (300 топливо + 40 парковка)
 
-    assert.equal((await post('/api/transfers', { date: '2026-12-02', fromId: toMisha.from, toId: misha, amount: toMisha.amount })).status, 200);
+    assert.equal((await post('/api/transfers', { date: '2026-12-03', fromId: boris, toId: misha, amount: 255 })).status, 200);
     const after = (await get('/api/money?year=2026')).body;
-    assert.ok(!after.fuel.settlements.some((x: { from: string | null; to: string }) => x.from === toMisha.from && x.to === misha));
+    assert.ok(!after.fuel.settlements.some((x: { from: string | null; to: string }) => x.from === boris && x.to === misha));
   });
 
-  it('ставки меняют только админы и в разумных пределах', async () => {
-    assert.equal((await post('/api/settings', { amortPerKm: -1 })).status, 400);
+  it('новая ставка с даты не меняет прошлые поездки', async () => {
+    const before = (await get('/api/journal?year=2026')).body.trips.find((x: { date: string }) => x.date === '2026-11-14');
+    assert.equal((await post('/api/rates', { validFrom: '2026-12-15', amortPerKm: 1 })).status, 200);
+    const after = (await get('/api/journal?year=2026')).body.trips.find((x: { date: string }) => x.date === '2026-11-14');
+    assert.equal(after.cost.amort, before.cost.amort);
+    assert.equal((await post('/api/rates', { validFrom: '2026-12-16', amortPerKm: -1 })).status, 400);
+  });
+
+  it('ставки в разумных пределах', async () => {
+    assert.equal((await post('/api/settings', { fuelType: 'kerosene' })).status, 400);
   });
 });
 
