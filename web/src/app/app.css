@@ -1796,6 +1796,21 @@ code {
   font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
+/* «рассчитались до» */
+.settle {
+  padding: 14px 0 4px;
+}
+.settle__row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.settle__row .date-input {
+  flex: 1;
+}
+.settle__note {
+  margin-top: 12px;
+}
 /* ремонт и ТО */
 a.text-button {
   display: inline-flex;

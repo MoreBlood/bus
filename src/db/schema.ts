@@ -21,6 +21,10 @@ export const members = sqliteTable(
     isAdmin: integer({ mode: 'boolean' }).notNull().default(false),
     /** выбывший участник: не входит и не предлагается в новых записях, история остаётся */
     active: integer({ mode: 'boolean' }).notNull().default(true),
+    /** совладелец с даты (YYYY-MM-DD); null — с самого начала. Для истории: раньше в поездки не записывается */
+    joinedOn: text(),
+    /** с какой даты не совладелец (YYYY-MM-DD): до неё его можно записывать в поездки — для истории */
+    leftOn: text(),
     sort: integer().notNull().default(0),
     createdAt: text().notNull().default(now),
     updatedAt: text(),

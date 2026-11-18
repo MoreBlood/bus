@@ -10,6 +10,7 @@ const INSTRUCTIONS = `Бус — общий бортжурнал буса, ко�
 - Ставки действуют с даты (периоды): поездка считается по ставке своего дня. Тип топлива (дизель/бензин/газ/электро) задаёт единицы.
 - Топливо: режим «бак на бак» (rate) — люди в поездке рассчитываются сами по подсказке; режим учёта заправок (refuels) — заправки вводятся (add_refuel), стоимость топлива считается по полным бакам, get_money показывает, кто кому должен, add_transfer закрывает долг.
 - Ремонт и ТО (add_repair): что сделали, сумма, кто заплатил (null — касса). Обычно ремонт несёт касса: он гасится из резерва — амортизации, которую каждый начислил своими км (кто больше ездит, тот больше платит); не хватило резерва — остаток поровну на владельцев. Улучшение (kind=upgrade: бокс, кровать) — поровну на владельцев; поломка по вине участника — charged_to. Доли попадают в get_money → ledger (кто кому должен).
+- Заполнение истории за прошлые годы: собери записи из рассказа пользователя (примерные даты и км — нормально, пометь в note «примерно»), бывших совладельцев заведи add_member (active=false, left_on — с какой даты не совладелец; админ), а тем, кто пришёл позже, поставь joined_on (update_member) — иначе они разделят старые ремонты. Затем import_history пачками до 300 записей (удобно по годам): сначала dry_run=true — покажи пользователю сводку по годам и строки с ошибками или дублями, и только после его «да» тот же запрос с dry_run=false. Если старые расчёты закрыты, админ ставит set_rates settled_until — история останется в статистике и резерве, но не станет долгами. Ставки прошлых лет — set_rates с valid_from.
 - Пробег — по одометру (odometer_start/odometer_end) или км. Перед записью вызови get_journal: last_odometer — разумное odometer_start; issues — разрывы одометра (их км пока на кассе — предложи записать, если пользователь знает, кто ездил).
 - Имена сопоставляй через list_members; если неясно, кто ехал или чьи гости, — спроси.
 - Дата — YYYY-MM-DD; многодневная поездка — date + end_date.
@@ -91,8 +92,53 @@ function buildServer(s: Service, v: Viewer) {
     },
   );
 
-  tool('list_members', 'Участники (совладельцы): id, имя, GitHub-логин, админ, активен.', z.object({}), read, async () =>
-    (await s.members()).map(({ id, name, githubLogin, isAdmin, active }) => ({ id, name, githubLogin, isAdmin, active })),
+  tool('list_members', 'Участники (совладельцы): id, имя, GitHub-логин, админ, активен, с какой даты выбыл.', z.object({}), read, async () =>
+    (await s.members()).map(({ id, name, githubLogin, isAdmin, active, joinedOn, leftOn }) => ({
+      id,
+      name,
+      githubLogin,
+      isAdmin,
+      active,
+      joined_on: joinedOn,
+      left_on: leftOn,
+    })),
+  );
+
+  tool(
+    'add_member',
+    'Админ: добавить участника. Для истории: joined_on — с какой даты совладелец (раньше его не записать, и старые ремонты он не делит); бывший совладелец — active=false и left_on (с какой даты не совладелец).',
+    z.object({
+      name: z.string().max(60),
+      github_login: z.string().optional().describe('Логин GitHub — чтобы входил и подключал ассистента'),
+      active: z.boolean().default(true),
+      joined_on: date.optional(),
+      left_on: date.optional(),
+    }),
+    write,
+    ({ github_login, joined_on, left_on, ...m }) =>
+      s.createMember(v, { ...m, githubLogin: github_login ?? null, joinedOn: joined_on ?? null, leftOn: left_on ?? null }),
+  );
+
+  tool(
+    'update_member',
+    'Админ: изменить участника — имя, GitHub-логин, активен ли, с какой даты совладелец (joined_on) и с какой выбыл (left_on).',
+    z.object({
+      member_id: z.string(),
+      name: z.string().max(60).optional(),
+      github_login: z.string().nullable().optional(),
+      active: z.boolean().optional(),
+      joined_on: date.nullable().optional(),
+      left_on: date.nullable().optional(),
+    }),
+    write,
+    ({ member_id, github_login, joined_on, left_on, ...m }) =>
+      s.updateMember(v, {
+        id: member_id,
+        ...m,
+        ...(github_login !== undefined && { githubLogin: github_login }),
+        ...(joined_on !== undefined && { joinedOn: joined_on }),
+        ...(left_on !== undefined && { leftOn: left_on }),
+      }),
   );
 
   tool('whoami', 'Кто подключён: логин GitHub, id участника, админ ли.', z.object({}), read, async () => v);
@@ -157,6 +203,52 @@ function buildServer(s: Service, v: Viewer) {
   );
 
   tool(
+    'import_history',
+    'Заполнить историю пачкой (до 300 записей): поездки (поля как у add_trip), заправки (как add_refuel), ремонты (как add_repair). dry_run=true (по умолчанию) ничего не пишет — возвращает строки с ошибками и возможными дублями и итоги по годам; покажи сводку пользователю и после подтверждения пришли то же с dry_run=false. Запись — всё или ничего.',
+    z.object({
+      dry_run: z.boolean().default(true),
+      allow_duplicates: z.boolean().default(false).describe('Записать и строки, похожие на уже записанные'),
+      trips: z.array(z.object(tripFields)).default([]),
+      refuels: z
+        .array(
+          z.object({
+            date,
+            liters: z.number().positive(),
+            amount: z.number().positive(),
+            paid_by: z.string().nullable(),
+            odometer: z.number().int().optional(),
+            full: z.boolean().default(true),
+            note: z.string().max(300).optional(),
+          }),
+        )
+        .default([]),
+      repairs: z
+        .array(
+          z.object({
+            date,
+            title: z.string().max(120),
+            kind: z.enum(['service', 'repair', 'tires', 'other', 'upgrade']).default('repair'),
+            amount: z.number().positive(),
+            paid_by: z.string().nullable(),
+            charged_to: z.string().nullable().optional(),
+            odometer: z.number().int().optional(),
+            note: z.string().max(300).optional(),
+          }),
+        )
+        .default([]),
+    }),
+    write,
+    (a) =>
+      s.importHistory(v, {
+        dryRun: a.dry_run,
+        allowDuplicates: a.allow_duplicates,
+        trips: a.trips.map(toInput),
+        refuels: a.refuels.map(({ paid_by, ...r }) => ({ ...r, paidBy: paid_by })),
+        repairs: a.repairs.map(({ paid_by, charged_to, ...r }) => ({ ...r, paidBy: paid_by, chargedTo: charged_to ?? null })),
+      }),
+  );
+
+  tool(
     'add_transfer',
     'Записать перевод между участниками (null — общая касса), чтобы закрыть долг за топливо, расходы поездок и ремонты.',
     z.object({ date, from_id: z.string().nullable(), to_id: z.string().nullable(), amount: z.number().positive(), note: z.string().optional() }),
@@ -166,7 +258,7 @@ function buildServer(s: Service, v: Viewer) {
 
   tool(
     'set_rates',
-    'Админ: новые ставки с даты valid_from (по умолчанию сегодня; прошлые поездки не меняются) — амортизация zł/км, расход на 100 км, цена единицы топлива; и общие настройки — режим (rate — бак на бак, refuels — учёт заправок) и тип топлива.',
+    'Админ: новые ставки с даты valid_from (по умолчанию сегодня; прошлые поездки не меняются) — амортизация zł/км, расход на 100 км, цена единицы топлива; и общие настройки — режим (rate — бак на бак, refuels — учёт заправок), тип топлива, отметка «рассчитались до» (settled_until).',
     z.object({
       valid_from: date.optional(),
       amort_per_km: z.number().optional(),
@@ -174,13 +266,18 @@ function buildServer(s: Service, v: Viewer) {
       fuel_price: z.number().optional(),
       fuel_mode: z.enum(['rate', 'refuels']).optional(),
       fuel_type: z.enum(['diesel', 'petrol', 'lpg', 'electric']).optional(),
+      settled_until: date
+        .nullable()
+        .optional()
+        .describe('Всё до этой даты включительно уже рассчитано: история остаётся, но не превращается в долги; null — снять отметку'),
     }),
     write,
     async (a) => {
-      if (a.fuel_mode !== undefined || a.fuel_type !== undefined)
+      if (a.fuel_mode !== undefined || a.fuel_type !== undefined || a.settled_until !== undefined)
         await s.saveSettings(v, {
           ...(a.fuel_mode !== undefined && { fuelMode: a.fuel_mode }),
           ...(a.fuel_type !== undefined && { fuelType: a.fuel_type }),
+          ...(a.settled_until !== undefined && { settledUntil: a.settled_until }),
         });
       if (a.amort_per_km !== undefined || a.fuel_per_100 !== undefined || a.fuel_price !== undefined)
         await s.savePeriod(v, {

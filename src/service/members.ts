@@ -35,9 +35,19 @@ const memberInput = z.object({
   name: z.string().trim().min(1, 'Нужно имя').max(60, 'Имя длиннее 60 символов'),
   githubLogin: githubLogin.nullish().or(z.literal('').transform(() => null)),
   isAdmin: z.boolean().optional(),
+  /** для истории: с какой даты совладелец, бывший — active=false и с какой даты не совладелец */
+  active: z.boolean().optional(),
+  joinedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата в формате ГГГГ-ММ-ДД').nullish(),
+  leftOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата в формате ГГГГ-ММ-ДД').nullish(),
 });
 
-const memberPatch = memberInput.partial().extend({ id: z.string().min(1), active: z.boolean().optional() });
+const memberPatch = memberInput.partial().extend({ id: z.string().min(1) });
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+/** Был ли совладельцем в этот день: с даты прихода (если указана) и до ухода (выбывший без даты — до сегодня). */
+export const ownerOn = (m: Pick<Member, 'active' | 'joinedOn' | 'leftOn'>, date: string) =>
+  (!m.joinedOn || date >= m.joinedOn) && (m.active || date < (m.leftOn ?? today()));
 
 export const parse = <T extends z.ZodType>(schema: T, data: unknown): z.output<T> => {
   const r = schema.safeParse(data);
@@ -143,11 +153,15 @@ export async function createMember(db: Db, v: Viewer, input: unknown) {
     throw conflict('В демо уже 40 участников — это предел превью');
   await assertLoginFree(db, b.githubLogin);
   const id = randomUUID();
+  const active = b.active ?? true;
   await db.insert(members).values({
     id,
     name: b.name,
     githubLogin: b.githubLogin ?? null,
-    isAdmin: b.isAdmin ?? false,
+    isAdmin: active && (b.isAdmin ?? false),
+    active,
+    joinedOn: b.joinedOn ?? null,
+    leftOn: active ? null : (b.leftOn ?? today()),
     sort: await nextSort(db),
   });
   return { id };
@@ -174,6 +188,13 @@ export async function updateMember(db: Db, v: Viewer, input: unknown) {
   }
   if (b.isAdmin !== undefined) patch.isAdmin = b.isAdmin;
   if (b.active !== undefined) patch.active = b.active;
+  if (b.joinedOn !== undefined) patch.joinedOn = b.joinedOn ?? null;
+  // выбыл — с сегодняшнего дня, если дату не указали; вернулся — даты ухода больше нет
+  const active = b.active ?? m.active;
+  if (active) {
+    if (m.leftOn) patch.leftOn = null;
+  } else if (b.leftOn !== undefined) patch.leftOn = b.leftOn ?? today();
+  else if (!m.leftOn) patch.leftOn = today();
   await db.update(members).set(patch).where(eq(members.id, m.id));
   return { ok: true };
 }

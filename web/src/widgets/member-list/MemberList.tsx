@@ -2,7 +2,7 @@
 import { Switch, TextField } from '@radix-ui/themes';
 import { createMember, deleteMember, errorText, updateMember } from '@shared/api/client';
 import type { Member, MemberInput, Viewer } from '@shared/api/types';
-import { plural } from '@shared/lib/format';
+import { plural, shortDate, today } from '@shared/lib/format';
 import { Pictogram } from '@shared/ui/Pictogram';
 import { SignButton } from '@shared/ui/SignButton';
 import { type FormEvent, useId, useState } from 'react';
@@ -16,7 +16,11 @@ function Tags({ m, meId }: { m: Member; meId: string | null }) {
       ) : (
         m.isAdmin && <span className="tag">админ</span>
       )}
-      {!m.active && <span className="tag tag--muted">выбыл</span>}
+      {!m.active && (
+        <span className="tag tag--muted">
+          {m.leftOn ? `выбыл с ${shortDate(m.leftOn)} ${m.leftOn.slice(0, 4)}` : 'выбыл'}
+        </span>
+      )}
     </>
   );
 }
@@ -32,12 +36,14 @@ function Editor({
   onDone: () => Promise<void>;
   onCancel: () => void;
 }) {
-  const ids = { name: useId(), login: useId() };
+  const ids = { name: useId(), login: useId(), left: useId(), joined: useId() };
   const self = !!member && member.id === viewer.memberId;
   const [name, setName] = useState(member?.name ?? '');
   const [login, setLogin] = useState(member?.githubLogin ?? '');
   const [isAdmin, setIsAdmin] = useState(member?.isAdmin ?? false);
   const [active, setActive] = useState(member?.active ?? true);
+  const [leftOn, setLeftOn] = useState(member?.leftOn ?? today());
+  const [joinedOn, setJoinedOn] = useState(member?.joinedOn ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,8 +66,9 @@ function Editor({
       githubLogin: login.trim().replace(/^@/, '') || null,
       isAdmin,
     };
-    if (member) run(() => updateMember(member.id, { ...body, active }));
-    else run(() => createMember(body));
+    const left = { joinedOn: joinedOn || null, ...(active ? {} : { leftOn: leftOn || today() }) };
+    if (member) run(() => updateMember(member.id, { ...body, active, ...left }));
+    else run(() => createMember({ ...body, active, ...left }));
   };
 
   return (
@@ -123,23 +130,63 @@ function Editor({
           onCheckedChange={setIsAdmin}
         />
       </label>
-      {member && (
-        <label className="switch-row">
-          <span>
-            Участвует
-            <small>Выбывший не входит и не предлагается в новых поездках; история остаётся</small>
-          </span>
-          <Switch
-            size="3"
-            color="gray"
-            highContrast
-            aria-label="Участвует"
-            checked={active}
-            disabled={self}
-            onCheckedChange={setActive}
-          />
+      <div>
+        <label className="field__label" htmlFor={ids.joined}>
+          Совладелец с <span className="optional">— необязательно</span>
         </label>
+        <TextField.Root
+          id={ids.joined}
+          className="date-input"
+          type="date"
+          size="3"
+          max={today()}
+          value={joinedOn}
+          onChange={(e) => setJoinedOn(e.target.value)}
+        />
+        <p className="field__hint">
+          Пусто — с самого начала. Раньше этой даты его не записать в поездки, и старые ремонты он
+          не делит.
+        </p>
+      </div>
+      <label className="switch-row">
+        <span>
+          Участвует
+          <small>
+            {member
+              ? 'Выбывший не входит и не предлагается в новых поездках; история остаётся'
+              : 'Выключите, если добавляете бывшего совладельца — для истории'}
+          </small>
+        </span>
+        <Switch
+          size="3"
+          color="gray"
+          highContrast
+          aria-label="Участвует"
+          checked={active}
+          disabled={self}
+          onCheckedChange={setActive}
+        />
+      </label>
+      {!active && (
+        <div>
+          <label className="field__label" htmlFor={ids.left}>
+            Не совладелец с
+          </label>
+          <TextField.Root
+            id={ids.left}
+            className="date-input"
+            type="date"
+            size="3"
+            max={today()}
+            value={leftOn}
+            onChange={(e) => setLeftOn(e.target.value)}
+          />
+          <p className="field__hint">
+            В поездки до этой даты его можно записывать — так заполняется история.
+          </p>
+        </div>
       )}
+
       {error && (
         <div className="notice notice--error" role="alert">
           <Pictogram name="warning" size={32} />

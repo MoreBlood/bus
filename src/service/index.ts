@@ -2,6 +2,7 @@
 import type { Db } from '../db/index.ts';
 import * as assistantSvc from './assistant.ts';
 import * as moneySvc from './money.ts';
+import * as importSvc from './import.ts';
 import * as oauthClientsSvc from './oauth-clients.ts';
 import * as repairsSvc from './repairs.ts';
 import * as settingsSvc from './settings.ts';
@@ -47,6 +48,7 @@ export function createService(db: Db) {
     deleteTransfer: (v: Viewer, id: unknown) => moneySvc.deleteTransfer(db, v, id),
 
     exportData: () => tripsSvc.exportData(db),
+    importHistory: (v: Viewer, b: unknown) => importSvc.importHistory(db, v, b),
     assistantConnections: (v: Viewer) => assistantSvc.connections(db, v),
   };
 }

@@ -13,6 +13,10 @@ export interface Member {
   githubLogin: string | null;
   isAdmin: boolean;
   active: boolean;
+  /** совладелец с даты; null — с самого начала */
+  joinedOn: string | null;
+  /** с какой даты не совладелец; до неё его можно записывать в поездки (история) */
+  leftOn: string | null;
   sort: number;
   /** админ из переменной окружения ADMIN_GITHUB_USERS */
   envAdmin: boolean;
@@ -44,6 +48,8 @@ export type FuelType = 'diesel' | 'petrol' | 'lpg' | 'electric';
 export interface CostSettings {
   fuelMode: FuelMode;
   fuelType: FuelType;
+  /** всё до этой даты включительно рассчитано: история не превращается в долги */
+  settledUntil?: string | null;
 }
 
 /** Из чего сложена ставка амортизации: статьи в zł за год и пробег в год. */
@@ -347,4 +353,6 @@ export interface MemberInput {
   githubLogin?: string | null;
   isAdmin?: boolean;
   active?: boolean;
+  joinedOn?: string | null;
+  leftOn?: string | null;
 }

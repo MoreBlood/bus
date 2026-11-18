@@ -224,6 +224,14 @@ describe('ремонт из резерва', () => {
     near(r.reserve.left, 400);
   });
 
+  it('нехватку делят те, кто был совладельцем в день ремонта', () => {
+    const owners = (date: string) => (date < '2026-06-01' ? ['misha', 'anya', 'petya'] : ['misha', 'anya']);
+    const r = repairShares([], [repair('a', '2026-05-01', 300), repair('b', '2026-07-01', 300)], owners);
+    near(share(r, 'a', 'petya'), 100);
+    assert.equal(share(r, 'b', 'petya'), 0);
+    near(share(r, 'b', 'anya'), 150);
+  });
+
   it('кто заплатил в сервисе, тому возвращают доли', () => {
     const r = repairShares(accruals, [repair('r1', '2026-04-01', 200)], owners);
     const used = r.splits.get('r1')?.shares.map((x) => ({ id: x.memberId, amount: x.amount })) ?? [];

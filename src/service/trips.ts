@@ -22,7 +22,7 @@ import {
 } from './costs.ts';
 import { DATE, type JournalSummary, lastOdometer, type OdometerIssue, odometerIssues, summarize } from './journal.ts';
 import { getPeriods, getSettings } from './settings.ts';
-import { parse, type Viewer } from './members.ts';
+import { ownerOn, parse, type Viewer } from './members.ts';
 
 const MAX_TRIP_KM = 10_000;
 const MAX_TRIP_DAYS = 90;
@@ -51,7 +51,7 @@ const extrasInput = z.object({
   note: z.string().trim().max(200).default(''),
 });
 
-const tripInput = z
+export const tripInput = z
   .object({
     date: isoDate,
     endDate: isoDate.nullish(),
@@ -232,8 +232,8 @@ export async function getTrip(db: Db, id: string): Promise<TripView> {
 
 export { periodFor };
 
-/** Участники должны существовать; на новые поездки — только действующие. */
-async function assertRiders(db: Q, riders: RiderLike[], keep: Set<string> = new Set()) {
+/** Участники должны существовать; выбывшие — только в поездках до даты ухода (история). */
+async function assertRiders(db: Q, riders: RiderLike[], date: string, keep: Set<string> = new Set()) {
   if (!riders.length) return;
   const rows = await db.select().from(members).where(
     inArray(
@@ -244,7 +244,14 @@ async function assertRiders(db: Q, riders: RiderLike[], keep: Set<string> = new 
   for (const r of riders) {
     const m = rows.find((x) => x.id === r.memberId);
     if (!m) throw badRequest('Нет такого участника');
-    if (!m.active && !keep.has(m.id)) throw badRequest(`${m.name} выбыл(а) — новые поездки на него не записываются`);
+    if (!ownerOn(m, date) && !keep.has(m.id))
+      throw badRequest(
+        m.leftOn
+          ? `${m.name} не совладелец с ${m.leftOn} — поездки после этой даты на него не записываются`
+          : m.joinedOn && date < m.joinedOn
+            ? `${m.name} совладелец только с ${m.joinedOn}`
+            : `${m.name} выбыл(а) — новые поездки на него не записываются`,
+      );
   }
 }
 
@@ -252,7 +259,7 @@ export async function createTrip(db: Db, v: Viewer, input: unknown) {
   const { riders, ...t } = parse(tripInput, input);
   if (demoMode() && ((await db.select({ n: count() }).from(trips).get())?.n ?? 0) >= DEMO_MAX_TRIPS)
     throw conflict(`В демо уже ${DEMO_MAX_TRIPS} поездок — это предел превью`);
-  await assertRiders(db, riders);
+  await assertRiders(db, riders, t.date);
   const id = randomUUID();
   await db.transaction(async (tx) => {
     await tx.insert(trips).values({ id, ...t, createdBy: v.login });
@@ -279,7 +286,7 @@ export async function updateTrip(db: Db, v: Viewer, input: unknown) {
     ...(rest.memberId !== undefined && rest.riders === undefined ? { riders: undefined, shared: undefined } : {}),
     ...rest,
   });
-  await assertRiders(db, riders, new Set(old.riders.map((r) => r.memberId)));
+  await assertRiders(db, riders, t.date, new Set(old.riders.map((r) => r.memberId)));
   await db.transaction(async (tx) => {
     await tx
       .update(trips)
