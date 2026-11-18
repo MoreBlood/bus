@@ -2,8 +2,9 @@
 
 import { SettleUntil } from '@features/settle-until/SettleUntil';
 import { Select } from '@radix-ui/themes';
-import { createTransfer, deleteTransfer, errorText, fetchMoney } from '@shared/api/client';
-import type { FuelMode, Money } from '@shared/api/types';
+import { createTransfer, deleteTransfer, errorText } from '@shared/api/client';
+import { useMoney, useRefresh } from '@shared/api/queries';
+import type { FuelMode } from '@shared/api/types';
 import { FUEL_TYPES, periodFor } from '@shared/lib/cost';
 import {
   daysFrac,
@@ -22,7 +23,7 @@ import { SignLink } from '@shared/ui/SignButton';
 import { RatesSection } from '@widgets/rates/RatesSection';
 import { RepairsSection } from '@widgets/repairs/RepairsSection';
 import { Topbar } from '@widgets/topbar/Topbar';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 
 // главная цифра полосы — до копейки, без третьего знака
@@ -35,30 +36,26 @@ export function MoneyPage() {
   const [params, setParams] = useSearchParams();
   const year = params.get('year') ?? undefined;
   const { memberById, viewer } = useSession();
-  const [m, setM] = useState<Money | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const q = useMoney(year);
+  const m = q.data ?? null;
+  const load = useRefresh();
+  const [actionError, setActionError] = useState<string | null>(null);
+  // фоновый сбой при уже показанных деньгах не пугаем — он просто повторится
+  const error = actionError ?? (q.error && !q.data ? errorText(q.error) : null);
+  const shownYear = m && (q.isPlaceholderData ? (year ?? m.years[0]) : m.year);
   const [paying, setPaying] = useState<string | null>(null);
-
-  const load = useCallback(() => {
-    fetchMoney(year)
-      .then((x) => {
-        setM(x);
-        setError(null);
-      })
-      .catch((e) => setError(errorText(e)));
-  }, [year]);
-  useEffect(load, [load]);
 
   const name = (id: string | null) =>
     id === null ? 'Касса' : (memberById.get(id)?.name ?? 'Участник удалён');
   const settle = async (from: string | null, to: string | null, amount: number) => {
     const k = `${from}-${to}`;
     setPaying(k);
+    setActionError(null);
     try {
       await createTransfer({ date: today(), fromId: from, toId: to, amount });
-      load();
+      await load();
     } catch (e) {
-      setError(errorText(e));
+      setActionError(errorText(e));
     } finally {
       setPaying(null);
     }
@@ -70,9 +67,13 @@ export function MoneyPage() {
   const settledYear = !!m?.settings.settledUntil && `${m.year}-12-31` <= m.settings.settledUntil;
   const repairOf = (id: string) => m?.repairsByMember.find((r) => r.memberId === id)?.amount ?? 0;
   // пришли из мастера ремонта (/money#repairs-title) — показать раздел
+  // один раз на переход: фоновое обновление данных не должно дёргать прокрутку
   const { hash } = useLocation();
+  const scrolledTo = useRef<string | null>(null);
   useEffect(() => {
-    if (m && hash) document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' });
+    if (!m || !hash || scrolledTo.current === hash) return;
+    scrolledTo.current = hash;
+    document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' });
   }, [m, hash]);
   const fuel = m ? FUEL_TYPES[m.settings.fuelType] : FUEL_TYPES.diesel;
   // откуда цена км сегодня — одной строкой под цифрой
@@ -92,7 +93,7 @@ export function MoneyPage() {
       <Topbar section="Деньги">
         {m && (
           <Select.Root
-            value={m.year}
+            value={shownYear ?? m.year}
             onValueChange={(y) => setParams(y === m.years[0] ? {} : { year: y })}
           >
             <Select.Trigger className="year-select" aria-label="Год" />
@@ -136,7 +137,10 @@ export function MoneyPage() {
         </div>
       </section>
 
-      <div className="page">
+      <div
+        className={`page${q.isPlaceholderData ? ' is-refreshing' : ''}`}
+        aria-busy={q.isPlaceholderData}
+      >
         <div className="narrow">
           {error && (
             <div className="notice notice--error" role="alert" style={{ marginTop: 20 }}>
@@ -370,7 +374,9 @@ export function MoneyPage() {
                       <button
                         type="button"
                         className="text-button"
-                        onClick={() => deleteTransfer(t.id).then(load)}
+                        onClick={() =>
+                          deleteTransfer(t.id).then(load, (e) => setActionError(errorText(e)))
+                        }
                       >
                         Отменить
                       </button>

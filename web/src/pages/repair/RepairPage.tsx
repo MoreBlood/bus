@@ -1,47 +1,41 @@
 import { RepairWizard } from '@features/repair-wizard/RepairWizard';
-import {
-  createRepair,
-  deleteRepair,
-  errorText,
-  fetchJournal,
-  fetchMoney,
-  fetchRepair,
-  updateRepair,
-} from '@shared/api/client';
-import type { Repair, RepairInput } from '@shared/api/types';
+import { createRepair, deleteRepair, errorText, updateRepair } from '@shared/api/client';
+import { queries, useRefresh, useSettled } from '@shared/api/queries';
+import type { RepairInput } from '@shared/api/types';
 import { longDate } from '@shared/lib/format';
 import { useSession } from '@shared/model/session';
+import { useQuery } from '@tanstack/react-query';
 import { Topbar } from '@widgets/topbar/Topbar';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 export function RepairPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { members, viewer, loading } = useSession();
-  const [repair, setRepair] = useState<Repair | null | undefined>(id ? undefined : null);
-  const [lastOdo, setLastOdo] = useState<number | null | undefined>(id ? null : undefined);
-  const [reserveLeft, setReserveLeft] = useState<number | null>(null);
+  const refresh = useRefresh();
+  const repairQ = useQuery({ ...queries.repair(id ?? ''), enabled: !!id });
+  const loaded = useSettled(repairQ);
+  const repair = id ? loaded : null;
+  // последнее показание одометра — только для новой записи; не загрузилось — поле пустое
+  const journalQ = useQuery({ ...queries.journal(), enabled: !id });
+  const journal = useSettled(journalQ);
+  const lastOdo = id
+    ? null
+    : journal !== undefined || (journalQ.isError && !journalQ.data)
+      ? (journal?.lastOdometer?.km ?? null)
+      : undefined;
+  // сколько в резерве — для подсказки «за чей счёт»; не загрузилось — просто без цифры
+  const reserveLeft = useQuery(queries.money()).data?.reserve.left ?? null;
   const [step, setStep] = useState<0 | 1>(id ? 1 : 0);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [actionError, setError] = useState<string | null>(null);
+  const error = actionError ?? (repairQ.error && !repairQ.data ? errorText(repairQ.error) : null);
 
-  useEffect(() => {
-    if (id)
-      fetchRepair(id)
-        .then(setRepair)
-        .catch((e) => setError(errorText(e)));
-    else
-      fetchJournal()
-        .then((j) => setLastOdo(j.lastOdometer?.km ?? null))
-        .catch(() => setLastOdo(null));
-    // сколько в резерве — для подсказки «за чей счёт»; не загрузилось — просто без цифры
-    fetchMoney()
-      .then((m) => setReserveLeft(m.reserve.left))
-      .catch(() => {});
-  }, [id]);
-
-  const done = () => navigate('/money#repairs-title');
+  const done = () => {
+    refresh();
+    navigate('/money#repairs-title');
+  };
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
     setError(null);

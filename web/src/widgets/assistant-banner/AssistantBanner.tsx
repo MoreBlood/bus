@@ -1,7 +1,8 @@
 // Плашка в журнале: пока участник не подключил ассистента — зовём в раздел «Ассистент».
-import { type AssistantStatus, fetchAssistant } from '@shared/api/client';
+import { queries } from '@shared/api/queries';
 import { Glyph, Pictogram } from '@shared/ui/Pictogram';
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const KEY = 'bus:assistant-banner-hidden';
@@ -14,14 +15,9 @@ const hidden = () => {
 };
 
 export function AssistantBanner() {
-  const [status, setStatus] = useState<AssistantStatus | null>(null);
   const [dismissed, setDismissed] = useState(hidden);
-  useEffect(() => {
-    if (!dismissed)
-      fetchAssistant()
-        .then(setStatus)
-        .catch(() => {});
-  }, [dismissed]);
+  // не загрузилось — плашки просто нет
+  const status = useQuery({ ...queries.assistant(), enabled: !dismissed }).data;
   if (dismissed || !status || status.connections.length > 0) return null;
   const hide = () => {
     setDismissed(true);

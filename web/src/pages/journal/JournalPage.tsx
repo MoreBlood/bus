@@ -1,5 +1,6 @@
 import { Select } from '@radix-ui/themes';
-import { errorText, fetchJournal } from '@shared/api/client';
+import { errorText } from '@shared/api/client';
+import { useJournal } from '@shared/api/queries';
 import type { Journal } from '@shared/api/types';
 import { km } from '@shared/lib/format';
 import { useSession } from '@shared/model/session';
@@ -10,7 +11,7 @@ import { MemberTotals, YearLine } from '@widgets/member-totals/MemberTotals';
 import { OdometerBand } from '@widgets/odometer-band/OdometerBand';
 import { Topbar } from '@widgets/topbar/Topbar';
 import { TripFeed } from '@widgets/trip-feed/TripFeed';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 
 /** Табличка одометра ушла под полосу — полоса показывает значение сама. */
@@ -33,29 +34,17 @@ export function JournalPage() {
   const location = useLocation();
   const freshId = (location.state as { fresh?: string } | null)?.fresh;
   const { members, memberById, viewer, loading: sessionLoading } = useSession();
-  const [journal, setJournal] = useState<Journal | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const year = params.get('year') ?? undefined;
+  // при возврате во вкладку журнал перечитывается сам — друзья пишут в него же
+  const q = useJournal(year);
+  const journal = q.data ?? null;
+  // фоновый сбой при уже показанном журнале не пугаем — он просто повторится
+  const error = q.error && !q.data ? errorText(q.error) : null;
+  // пока грузится другой год, на экране прежний — в выборе уже новый
+  const shownYear = journal && (q.isPlaceholderData ? (year ?? journal.years[0]) : journal.year);
   const odoRef = useRef<HTMLDivElement>(null);
   const setup = useSetup();
   const compact = useOutOfView(odoRef);
-
-  const load = useCallback(() => {
-    fetchJournal(year)
-      .then((j) => {
-        setJournal(j);
-        setError(null);
-      })
-      .catch((e) => setError(errorText(e)));
-  }, [year]);
-
-  useEffect(load, [load]);
-  // друзья пишут в тот же журнал — обновляемся, когда вкладка снова на экране
-  useEffect(() => {
-    const onShow = () => document.visibilityState === 'visible' && load();
-    document.addEventListener('visibilitychange', onShow);
-    return () => document.removeEventListener('visibilitychange', onShow);
-  }, [load]);
 
   const last = journal ? journal.lastOdometer : undefined;
   return (
@@ -63,7 +52,7 @@ export function JournalPage() {
       <Topbar section="Бортжурнал" compact={compact} compactValue={last ? km(last.km) : undefined}>
         {journal && (
           <Select.Root
-            value={journal.year}
+            value={shownYear ?? journal.year}
             onValueChange={(y) => setParams(y === journal.years[0] ? {} : { year: y })}
           >
             <Select.Trigger className="year-select" aria-label="Год журнала" />
@@ -78,13 +67,16 @@ export function JournalPage() {
         )}
       </Topbar>
       <OdometerBand ref={odoRef} last={last} />
-      <div className="page">
+      <div
+        className={`page${q.isPlaceholderData ? ' is-refreshing' : ''}`}
+        aria-busy={q.isPlaceholderData}
+      >
         {error && (
           <div className="notice notice--error" role="alert" style={{ marginTop: 20 }}>
             <Pictogram name="warning" size={32} />
             <span>
               Журнал не загрузился: {error}.{' '}
-              <button type="button" className="inline-link" onClick={load}>
+              <button type="button" className="inline-link" onClick={() => q.refetch()}>
                 Повторить
               </button>
             </span>

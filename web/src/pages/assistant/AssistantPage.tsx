@@ -1,11 +1,13 @@
 // Ключевая фишка: каждый участник подключает своего ассистента (Claude, ChatGPT, Claude Code)
 // к журналу по MCP и записывает поездки разговором.
-import { type AssistantStatus, errorText, fetchAssistant } from '@shared/api/client';
+import { errorText } from '@shared/api/client';
+import { queries } from '@shared/api/queries';
 import { longDate } from '@shared/lib/format';
 import { Pictogram } from '@shared/ui/Pictogram';
 import { SignButton } from '@shared/ui/SignButton';
+import { useQuery } from '@tanstack/react-query';
 import { Topbar } from '@widgets/topbar/Topbar';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 function useCopy() {
   const [copied, setCopied] = useState<string | null>(null);
@@ -27,14 +29,10 @@ const EXAMPLES = [
 ];
 
 export function AssistantPage() {
-  const [status, setStatus] = useState<AssistantStatus | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const q = useQuery(queries.assistant());
+  const status = q.data ?? null;
+  const error = q.error && !q.data ? errorText(q.error) : null;
   const { copied, copy } = useCopy();
-  useEffect(() => {
-    fetchAssistant()
-      .then(setStatus)
-      .catch((e) => setError(errorText(e)));
-  }, []);
   const url = status?.mcpUrl ?? '';
   const cli = `claude mcp add --transport http bus ${url}`;
 

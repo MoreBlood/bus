@@ -1,15 +1,8 @@
-// Кто вошёл и список участников — нужны почти на каждом экране, грузим один раз.
-import { fetchMe, fetchMembers } from '@shared/api/client';
+// Кто вошёл и список участников — нужны почти на каждом экране; держит кэш React Query.
+import { queries, useRefresh } from '@shared/api/queries';
 import type { Member, Viewer } from '@shared/api/types';
-import {
-  createContext,
-  type ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { createContext, type ReactNode, useContext, useMemo } from 'react';
 
 interface Session {
   viewer: Viewer | null;
@@ -18,41 +11,32 @@ interface Session {
   memberById: Map<string, Member>;
   loading: boolean;
   error: string | null;
+  /** после правки участников: имена и счётчики поездок есть и в журнале, и в деньгах */
   reloadMembers: () => Promise<void>;
 }
 
 const Ctx = createContext<Session | null>(null);
+const NONE: Member[] = [];
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [viewer, setViewer] = useState<Viewer | null>(null);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const reloadMembers = useCallback(async () => {
-    setMembers(await fetchMembers());
-  }, []);
-
-  useEffect(() => {
-    Promise.all([fetchMe(), fetchMembers()])
-      .then(([v, m]) => {
-        setViewer(v);
-        setMembers(m);
-      })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
+  const me = useQuery(queries.me());
+  const list = useQuery(queries.members());
+  const refresh = useRefresh();
+  const members = list.data ?? NONE;
+  const failed = me.error ?? list.error;
+  // ошибка важна, только пока показывать нечего: фоновый сбой не должен закрывать журнал
+  const error = failed && (!me.data || !list.data) ? failed.message : null;
 
   const value = useMemo(
     () => ({
-      viewer,
+      viewer: me.data ?? null,
       members,
       memberById: new Map(members.map((m) => [m.id, m])),
-      loading,
+      loading: me.isPending || list.isPending,
       error,
-      reloadMembers,
+      reloadMembers: refresh,
     }),
-    [viewer, members, loading, error, reloadMembers],
+    [me.data, members, me.isPending, list.isPending, error, refresh],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
