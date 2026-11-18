@@ -122,7 +122,9 @@ describe('защита', () => {
     process.env.BETTER_AUTH_URL = 'https://bus.example';
     try {
       const prod = createApp({ service: createService(drizzle({ client, ...dbConfig })), auth: null });
-      const old = await prod.request('https://bus-abc123.vercel.app/api/setup', { headers: { host: 'bus-abc123.vercel.app' } });
+      const old = await prod.request('https://bus-abc123.vercel.app/api/setup?path=setup', {
+        headers: { host: 'bus-abc123.vercel.app' },
+      });
       assert.equal(old.status, 308);
       assert.equal(old.headers.get('location'), 'https://bus.example/api/setup');
       const write = await prod.request('https://bus-abc123.vercel.app/api/trips', {
