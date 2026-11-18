@@ -12,7 +12,8 @@
   --ink-3: #5c5c5c;
   --line: #e0e0e0;
   --line-strong: #0b0b0b;
-  --surface-2: #f2f2f2;
+  --surface-2: #e6e6e6;
+  --frame: 2px solid var(--sign-black);
   --danger: #b42318;
   --band-rule: 4px;
   --tap: 48px;
@@ -148,11 +149,12 @@ a {
 .sign-button--black {
   background: var(--sign-black);
   color: #ffffff;
-  border-bottom-color: var(--sign-black);
+  border-bottom: 0;
 }
 .sign-button--black .sign-button__arrow {
-  background: var(--sign-yellow);
-  color: var(--sign-black);
+  background: var(--sign-black);
+  color: var(--sign-yellow);
+  border-left: 2px solid var(--sign-yellow);
 }
 .sign-button--black:active {
   background: var(--panel);
@@ -248,7 +250,7 @@ a {
   transform: none;
 }
 @media (max-width: 559px) {
-  .wordmark__section--brand {
+  .topbar.is-compact .wordmark__section--brand {
     display: none;
   }
 }
@@ -399,8 +401,8 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 46px;
-  padding: 6px 0;
+  min-height: 34px;
+  padding: 4px 0;
   border-bottom: 1px solid var(--line);
   font-size: 16px;
 }
@@ -496,13 +498,14 @@ a {
   letter-spacing: 0;
 }
 .trip-row.is-fresh {
-  animation: fresh 2400ms var(--ease-out);
+  animation: fresh 1400ms linear;
 }
 @keyframes fresh {
-  from {
-    background: var(--sign-yellow);
+  0%,
+  85% {
+    background: var(--sign-yellow-wash);
   }
-  to {
+  100% {
     background: transparent;
   }
 }
@@ -631,7 +634,7 @@ a {
   gap: 8px;
   min-height: var(--tap);
   padding: 0 10px;
-  border: 2px solid var(--line);
+  border: var(--frame);
   background: #ffffff;
   font: 600 15px / 1.2 var(--font);
   color: var(--ink);
@@ -648,11 +651,15 @@ a {
   white-space: nowrap;
 }
 .who__option:hover {
-  border-color: var(--ink-3);
+  background: var(--surface-2);
 }
 .who__option[aria-checked="true"] {
-  border-color: var(--sign-black);
-  background: var(--sign-yellow);
+  background: var(--sign-black);
+  color: #ffffff;
+}
+.who__option[aria-checked="true"] .pictogram {
+  background: #ffffff;
+  color: var(--sign-black);
 }
 .who__option--shared {
   grid-column: span 3;
@@ -661,7 +668,7 @@ a {
   width: 100%;
   height: 56px;
   padding: 0 14px;
-  border: 2px solid var(--line);
+  border: var(--frame);
   border-radius: 0;
   background: #ffffff;
   font: 700 24px / 1 var(--font);
@@ -676,12 +683,11 @@ a {
   margin: 0;
 }
 .num-input:hover {
-  border-color: var(--ink-3);
+  background: #fafafa;
 }
 .num-input:focus {
-  border-color: var(--sign-black);
   outline: none;
-  box-shadow: 0 0 0 2px var(--sign-black);
+  box-shadow: inset 0 0 0 2px var(--sign-black);
 }
 .num-input[aria-invalid="true"] {
   border-color: var(--danger);
@@ -951,21 +957,7 @@ a {
   .band__cta {
     display: block;
   }
-  .journal-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
-    grid-template-areas: "feed side";
-    gap: 56px;
-    align-items: start;
-  }
-  .journal-grid__feed {
-    grid-area: feed;
-  }
-  .journal-grid__side {
-    grid-area: side;
-    position: sticky;
-    top: 92px;
-  }
+
   .totals {
     grid-template-columns: 1fr;
   }
@@ -1120,4 +1112,174 @@ code {
 }
 .nowrap {
   white-space: nowrap;
+}
+
+/* поля Radix: чёрная рамка в покое, толще в фокусе — видно на солнце */
+.radix-themes .rt-TextFieldRoot {
+  box-shadow: inset 0 0 0 2px var(--sign-black);
+  background: #ffffff;
+}
+.radix-themes .rt-TextFieldRoot:focus-within {
+  outline: none;
+  box-shadow: inset 0 0 0 4px var(--sign-black);
+}
+.radix-themes .rt-TextFieldRoot:has(input:disabled) {
+  box-shadow: inset 0 0 0 2px var(--ink-3);
+  background: var(--surface-2);
+}
+/* переключатель: дорожка в рамке, выключенный не растворяется в белом */
+.radix-themes .rt-SwitchRoot::before {
+  background: #ffffff;
+  box-shadow: inset 0 0 0 2px var(--sign-black) !important;
+}
+.radix-themes .rt-SwitchRoot[data-state="checked"]::before {
+  background: var(--sign-black);
+}
+.radix-themes .rt-SwitchRoot[data-disabled]::before {
+  box-shadow: inset 0 0 0 2px var(--ink-3) !important;
+  background: var(--surface-2);
+}
+.radix-themes .rt-SegmentedControlRoot {
+  box-shadow: inset 0 0 0 2px var(--sign-black);
+}
+
+/* метка локальной копии с демо-данными */
+.local-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+/* журнал: на телефоне — итог года, лента, затем личный пробег */
+.journal-grid {
+  display: grid;
+  grid-template-areas:
+    "year"
+    "feed"
+    "totals";
+}
+.journal-grid__year {
+  grid-area: year;
+}
+.journal-grid__feed {
+  grid-area: feed;
+}
+.journal-grid__totals {
+  grid-area: totals;
+}
+
+/* форма: главное действие у большого пальца */
+.form__submit {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin: 0 -16px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: #ffffff;
+  border-top: 2px solid var(--sign-black);
+}
+
+@media (max-width: 559px) {
+  /* плашка ассистента — в одну строку */
+  .assistant-banner {
+    margin-top: 16px;
+  }
+  .assistant-banner__link {
+    min-height: 56px;
+    padding: 8px 52px 8px 8px;
+  }
+  .assistant-banner__link .pictogram {
+    width: 36px !important;
+    height: 36px !important;
+  }
+  .assistant-banner__link b {
+    font-size: 16px;
+  }
+  .assistant-banner__sub {
+    display: none;
+  }
+  .odo-sign {
+    padding-bottom: 16px;
+  }
+  .odo-sign__value {
+    font-size: clamp(52px, 15vw, 64px);
+  }
+  .year-line {
+    padding: 14px 0 12px;
+  }
+  .journal-grid__feed {
+    padding-top: 20px;
+  }
+}
+
+@media (min-width: 768px) {
+  .journal-grid {
+    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "feed year"
+      "feed totals";
+    column-gap: 56px;
+  }
+  .journal-grid__year,
+  .journal-grid__totals {
+    padding-left: 32px;
+    border-left: 1px solid var(--line);
+  }
+  .journal-grid__totals {
+    align-self: start;
+  }
+  .form__submit {
+    position: static;
+    margin: 0;
+    padding: 0;
+    border-top: 0;
+  }
+}
+.form__actions:empty {
+  display: none;
+}
+
+/* спрятанное значение одометра в полосе не занимает места, пока табличка видна */
+.topbar:not(.is-compact) .topbar__odo {
+  width: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+/* строка поездки на телефоне: км рядом с заголовком, подпись — во всю ширину под ними */
+@media (max-width: 559px) {
+  .trip-row {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "pict title km"
+      "pict meta meta";
+    row-gap: 2px;
+    min-height: 64px;
+    padding: 10px 0;
+  }
+  .trip-row > .pictogram {
+    grid-area: pict;
+    align-self: center;
+  }
+  .trip-row__main {
+    display: contents;
+  }
+  .trip-row__title {
+    grid-area: title;
+    align-self: center;
+    font-size: 16px;
+  }
+  .trip-row__meta {
+    grid-area: meta;
+    margin-top: 0;
+  }
+  .trip-row__km {
+    grid-area: km;
+    align-self: center;
+    font-size: 26px;
+  }
 }

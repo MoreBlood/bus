@@ -3,6 +3,7 @@ import { errorText, fetchJournal } from '@shared/api/client';
 import type { Journal } from '@shared/api/types';
 import { km } from '@shared/lib/format';
 import { useSession } from '@shared/model/session';
+import { useSetup } from '@shared/model/setup';
 import { Pictogram } from '@shared/ui/Pictogram';
 import { SignLink } from '@shared/ui/SignButton';
 import { AssistantBanner } from '@widgets/assistant-banner/AssistantBanner';
@@ -37,6 +38,7 @@ export function JournalPage() {
   const [error, setError] = useState<string | null>(null);
   const year = params.get('year') ?? undefined;
   const odoRef = useRef<HTMLDivElement>(null);
+  const setup = useSetup();
   const compact = useOutOfView(odoRef);
 
   const load = useCallback(() => {
@@ -89,12 +91,20 @@ export function JournalPage() {
             </span>
           </div>
         )}
+        {setup && !setup.auth && (
+          <p className="local-note">
+            <span className="tag tag--muted">локально</span>
+            Данные только на этом компьютере
+          </p>
+        )}
         <AssistantBanner />
         {(!journal || sessionLoading) && !error && <JournalSkeleton />}
         {journal && !sessionLoading && (
           <div className="journal-grid">
-            <div className="journal-grid__side">
+            <div className="journal-grid__year">
               <YearLine journal={journal} />
+            </div>
+            <div className="journal-grid__totals">
               <MemberTotals journal={journal} members={members} meId={viewer?.memberId ?? null} />
             </div>
             <section className="section journal-grid__feed" aria-labelledby="feed-title">

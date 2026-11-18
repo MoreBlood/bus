@@ -320,9 +320,6 @@ export function TripForm({
       )}
 
       <div className="form__actions">
-        <SignButton type="submit" loading={busy}>
-          {isNew ? 'Записать поездку' : 'Сохранить'}
-        </SignButton>
         {trip && (
           <Flex justify="between" align="center" gap="3" wrap="wrap">
             <span className="form__meta">
@@ -361,6 +358,12 @@ export function TripForm({
             )}
           </Flex>
         )}
+      </div>
+
+      <div className="form__submit">
+        <SignButton type="submit" loading={busy}>
+          {isNew ? 'Записать поездку' : 'Сохранить'}
+        </SignButton>
       </div>
     </form>
   );
