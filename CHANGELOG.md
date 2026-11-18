@@ -2,6 +2,26 @@
 
 Что менялось в «Бусе». Записи ведёт release-please по заголовкам PR — руками не правьте.
 
+## [0.4.0](https://github.com/MoreBlood/bus/compare/v0.3.0...v0.4.0) (2026-11-18)
+
+
+### Новое
+
+* вкладки открываются сразу из кэша (React Query) ([#27](https://github.com/MoreBlood/bus/issues/27)) ([9d9f512](https://github.com/MoreBlood/bus/commit/9d9f5124364af82d1babf54ac256b9b103d082d4))
+
+
+### Исправления
+
+* одна кнопка главного действия на экране ([#26](https://github.com/MoreBlood/bus/issues/26)) ([ac596ca](https://github.com/MoreBlood/bus/commit/ac596caa422d69c64c8cf445aa66988cfa928808))
+
+
+### Зависимости
+
+* **ci:** Bump the actions group across 1 directory with 4 updates ([#10](https://github.com/MoreBlood/bus/issues/10)) ([d345ae8](https://github.com/MoreBlood/bus/commit/d345ae855db1ce90819e0c8eeeee90fda7358e30))
+* **server:** Bump @types/node from 22.20.5 to 26.6.6 ([#6](https://github.com/MoreBlood/bus/issues/6)) ([0e85fd9](https://github.com/MoreBlood/bus/commit/0e85fd9c5369d5e934d47024108b2648b9c3feb0))
+* **server:** Bump typescript from 5.9.3 to 7.0.2 ([#4](https://github.com/MoreBlood/bus/issues/4)) ([1537923](https://github.com/MoreBlood/bus/commit/1537923257465526bb7ad4808a683a1ba899d809))
+* **web:** vite 8, @vitejs/plugin-react 6 и TypeScript 7 ([#25](https://github.com/MoreBlood/bus/issues/25)) ([db25d7e](https://github.com/MoreBlood/bus/commit/db25d7e3125b270a937cc93f7e539ec7b362cb1f))
+
 ## [0.3.0](https://github.com/MoreBlood/bus/compare/v0.2.1...v0.3.0) (2026-11-18)
 
 
