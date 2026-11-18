@@ -32,6 +32,8 @@ export function createService(db: Db) {
     money: (year?: string) => moneySvc.money(db, year),
     settings: () => settingsSvc.getSettings(db),
     saveSettings: (v: Viewer, b: unknown) => settingsSvc.saveSettings(db, v, b),
+    savePeriod: (v: Viewer, b: unknown) => settingsSvc.savePeriod(db, v, b),
+    deletePeriod: (v: Viewer, id: unknown) => settingsSvc.deletePeriod(db, v, id),
     refuel: (id: string) => moneySvc.getRefuel(db, id),
     createRefuel: (v: Viewer, b: unknown) => moneySvc.createRefuel(db, v, b),
     updateRefuel: (v: Viewer, b: unknown) => moneySvc.updateRefuel(db, v, b),

@@ -51,6 +51,11 @@ export const trips = sqliteTable(
      */
     memberId: text().references(() => members.id),
     km: integer().notNull(),
+    /** расходы поездки сверх километров (платные дороги, парковки, паром), гроши; делятся как поездка */
+    extrasAmount: integer().notNull().default(0),
+    /** кто заплатил расходы; null — платили вскладчину на месте */
+    extrasPaidBy: text().references(() => members.id),
+    extrasNote: text().notNull().default(''),
     odoStart: integer(),
     odoEnd: integer(),
     note: text().notNull().default(''),
@@ -74,6 +79,8 @@ export const tripRiders = sqliteTable(
       .notNull()
       .references(() => members.id),
     guests: integer().notNull().default(0),
+    /** сам не ехал — бус отдан его гостям: его доля не считается, а доли гостей — на нём */
+    absent: integer({ mode: 'boolean' }).notNull().default(false),
   },
   (t) => [
     primaryKey({ columns: [t.tripId, t.memberId] }),
@@ -119,7 +126,26 @@ export const transfers = sqliteTable(
   (t) => [index('transfers_date').on(t.date), check('transfers_positive', sql`${t.amount} > 0`)],
 );
 
-/** Настройки расчёта (ставки, режим бензина) — JSON по ключу. */
+/**
+ * Ставки, действующие с даты: поездка считается по периоду, в который она попала, — новая цена топлива
+ * не переписывает прошлые поездки. basis — из чего сложена амортизация (помощник), для объяснения.
+ */
+export const ratePeriods = sqliteTable(
+  'rate_periods',
+  {
+    id: text().primaryKey(),
+    validFrom: text().notNull(),
+    amortPerKm: real().notNull(),
+    fuelPer100: real().notNull(),
+    fuelPrice: real().notNull(),
+    basis: text({ mode: 'json' }),
+    createdBy: text(),
+    createdAt: text().notNull().default(now),
+  },
+  (t) => [uniqueIndex('rate_periods_from').on(t.validFrom)],
+);
+
+/** Настройки расчёта (режим и тип топлива) — JSON по ключу. */
 export const settings = sqliteTable('settings', {
   key: text().primaryKey(),
   value: text({ mode: 'json' }).notNull(),
@@ -130,3 +156,4 @@ export type Trip = typeof trips.$inferSelect;
 export type TripRider = typeof tripRiders.$inferSelect;
 export type Refuel = typeof refuels.$inferSelect;
 export type Transfer = typeof transfers.$inferSelect;
+export type RatePeriodRow = typeof ratePeriods.$inferSelect;
