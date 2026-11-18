@@ -1,0 +1,39 @@
+{
+  "name": "bus",
+  "private": true,
+  "type": "module",
+  "description": "Общий бус: бортжурнал поездок и участники. Hono + Drizzle + Turso + Better Auth (GitHub) + React. Vercel.",
+  "main": "src/index.ts",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "node --disable-warning=ExperimentalWarning scripts/dev.ts",
+    "build": "npm ci --prefix web --no-fund --no-audit && npm run build --prefix web && node --disable-warning=ExperimentalWarning src/migrate.ts",
+    "start": "node --disable-warning=ExperimentalWarning src/local.ts",
+    "migrate": "node --disable-warning=ExperimentalWarning src/migrate.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --disable-warning=ExperimentalWarning --test 'src/**/*.test.ts'",
+    "check": "npm run typecheck && npm test && npm run lint --prefix web && npm run typecheck --prefix web",
+    "db:generate": "drizzle-kit generate",
+    "auth:schema": "node --disable-warning=ExperimentalWarning scripts/gen-auth-schema.ts",
+    "demo": "node --disable-warning=ExperimentalWarning scripts/demo-data.ts"
+  },
+  "dependencies": {
+    "@better-auth/cimd": "^1.7.7",
+    "@better-auth/mcp": "^1.7.7",
+    "@better-auth/oauth-provider": "^1.7.7",
+    "@hono/node-server": "^2.1.3",
+    "@libsql/client": "^0.18.0",
+    "@modelcontextprotocol/server": "^2.3.1",
+    "better-auth": "^1.7.7",
+    "drizzle-orm": "^0.45.3",
+    "hono": "^4.13.13",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "drizzle-kit": "^0.31.11",
+    "typescript": "~5.9"
+  }
+}

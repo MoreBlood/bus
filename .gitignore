@@ -1,0 +1,20 @@
+# --- Секреты и локальные данные (не коммитить) ---
+.env
+.env.local
+data/
+
+# --- Сборки и зависимости ---
+node_modules/
+/public/
+.vercel/
+*.tsbuildinfo
+
+# --- Локальные настройки инструментов ---
+.claude/settings.local.json
+.impeccable/config.local.json
+.DS_Store
+*.log
+
+# Impeccable: локальные референсы и кэш хука (решения дизайна — в PRODUCT.md, DESIGN.md, .impeccable/surfaces/)
+.impeccable/reference/
+.impeccable/hook.cache.json

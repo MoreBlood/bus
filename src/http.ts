@@ -1,0 +1,123 @@
+// HTTP: API приложения, вход и OAuth для MCP (облако), MCP. Общий для локального сервера и Vercel.
+import { oauthProviderAuthServerMetadata, oauthProviderOpenIdConfigMetadata } from '@better-auth/oauth-provider';
+import { requireMcpAuth } from '@better-auth/mcp';
+import { type Context, Hono, type Next } from 'hono';
+import { HTTPException } from 'hono/http-exception';
+import { type Auth, authConfigured, authRequired, baseURL, mcpResource } from './auth.ts';
+import { createMcp } from './mcp.ts';
+import { AppError } from './service/errors.ts';
+import type { Service, Viewer } from './service/index.ts';
+import { LOCAL_VIEWER } from './service/members.ts';
+
+export type Env = { Variables: { viewer: Viewer } };
+
+export function createApp({ service, auth }: { service: Service; auth: Auth | null }) {
+  const app = new Hono<Env>();
+
+  app.onError((err, c) => {
+    if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);
+    if (err instanceof AppError) return c.json({ error: err.message }, err.status);
+    console.error(err);
+    // у ошибок драйвера (DrizzleQueryError) суть — в cause; текст запроса с параметрами наружу не отдаём
+    const cause = (err as { cause?: { message?: string; code?: string } }).cause;
+    const message = cause?.message ? `${cause.code ? `${cause.code}: ` : ''}${cause.message}` : String(err.message || err);
+    return c.json({ error: message }, 500);
+  });
+
+  // --- вход (Better Auth) и OAuth-метаданные для MCP-коннекторов ------------------
+  if (auth) {
+    const asMetadata = oauthProviderAuthServerMetadata(auth);
+    const oidcMetadata = oauthProviderOpenIdConfigMetadata(auth);
+    app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
+    for (const p of ['/.well-known/oauth-authorization-server', '/.well-known/oauth-authorization-server/*'])
+      app.get(p, (c) => asMetadata(c.req.raw));
+    for (const p of ['/.well-known/openid-configuration', '/.well-known/openid-configuration/*'])
+      app.get(p, (c) => oidcMetadata(c.req.raw));
+    for (const p of ['/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/*'])
+      app.get(p, (c) => auth.handler(c.req.raw));
+  }
+
+  /** Облако: участник, вошедший через GitHub. Локально (127.0.0.1) — без входа, с правами админа. */
+  const viewerOf = async (c: Context<Env>): Promise<Viewer | null> => {
+    if (!authRequired()) return LOCAL_VIEWER;
+    if (!auth || !authConfigured())
+      throw new HTTPException(503, { message: 'Вход не настроен: нужны GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, ADMIN_GITHUB_USERS' });
+    const s = await auth.api.getSession({ headers: c.req.raw.headers });
+    return s ? service.resolveViewer(s.user.name) : null;
+  };
+  const guard = async (c: Context<Env>, next: Next) => {
+    const v = await viewerOf(c);
+    if (!v) throw new HTTPException(401, { message: 'unauthorized' });
+    c.set('viewer', v);
+    await next();
+  };
+
+  // --- MCP: в облаке — OAuth-токен Better Auth, локально — без входа ----------------
+  const mcpProtected = auth
+    ? requireMcpAuth(
+        auth,
+        async (req, claims) => {
+          const login = claims.sub ? await service.loginByUserId(claims.sub) : null;
+          const viewer = login ? await service.resolveViewer(login) : null;
+          if (!viewer) return Response.json({ error: 'Нет доступа: вы не участник буса' }, { status: 403 });
+          return createMcp(service, viewer).fetch(req);
+        },
+        { resource: mcpResource() },
+      )
+    : null;
+  app.all('/mcp', (c) => {
+    if (mcpProtected) return mcpProtected(c.req.raw);
+    if (authRequired()) throw new HTTPException(503, { message: 'Вход не настроен' });
+    return createMcp(service, LOCAL_VIEWER).fetch(c.req.raw);
+  });
+
+  // состояние установки — открыто без входа (секретов нет): по нему фронт показывает мастер настройки
+  app.get('/api/setup', async (c) => {
+    const v = authRequired() && auth && authConfigured() ? await viewerOf(c).catch(() => null) : null;
+    return c.json({
+      auth: authRequired(),
+      authConfigured: !authRequired() || authConfigured(),
+      login: v?.login ?? null,
+      baseUrl: baseURL(),
+      mcpUrl: mcpResource(),
+      githubCallbackUrl: `${baseURL()}/api/auth/callback/github`,
+    });
+  });
+
+  // --- API приложения ------------------------------------------------------------
+  const api = new Hono<Env>();
+  api.use(guard);
+
+  // biome-ignore lint/suspicious/noExplicitAny: тело проверяет сервис
+  const body = async (c: Context): Promise<any> => {
+    try {
+      return await c.req.json();
+    } catch {
+      throw new HTTPException(400, { message: 'invalid JSON' });
+    }
+  };
+
+  api.get('/me', (c) => c.json(c.get('viewer')));
+  api.get('/assistant', async (c) =>
+    c.json({ mcpUrl: mcpResource(), local: !authRequired(), connections: await service.assistantConnections(c.get('viewer')) }),
+  );
+
+  api.get('/members', async (c) => c.json(await service.members()));
+  api.post('/members', async (c) => c.json(await service.createMember(c.get('viewer'), await body(c))));
+  api.post('/members/update', async (c) => c.json(await service.updateMember(c.get('viewer'), await body(c))));
+  api.post('/members/delete', async (c) => c.json(await service.deleteMember(c.get('viewer'), (await body(c)).id)));
+
+  api.get('/journal', async (c) => c.json(await service.journal(c.req.query('year') || undefined)));
+  api.get('/trips/:id', async (c) => c.json(await service.trip(c.req.param('id'))));
+  api.post('/trips', async (c) => c.json(await service.createTrip(c.get('viewer'), await body(c))));
+  api.post('/trips/update', async (c) => c.json(await service.updateTrip(c.get('viewer'), await body(c))));
+  api.post('/trips/delete', async (c) => c.json(await service.deleteTrip(c.get('viewer'), (await body(c)).id)));
+
+  api.get('/export', async (c) => {
+    c.header('Content-Disposition', `attachment; filename="bus-export-${new Date().toISOString().slice(0, 10)}.json"`);
+    return c.json(await service.exportData());
+  });
+
+  app.route('/api', api);
+  return app;
+}
