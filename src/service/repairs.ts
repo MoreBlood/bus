@@ -8,7 +8,7 @@ import { badRequest, notFound } from './errors.ts';
 import { DATE } from './journal.ts';
 import { parse, type Viewer } from './members.ts';
 
-const repairInput = z
+export const repairInput = z
   .object({
     date: z.string().regex(DATE, 'Дата в формате ГГГГ-ММ-ДД'),
     odometer: z.number().int().min(0).max(9_999_999).nullish(),

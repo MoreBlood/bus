@@ -22,7 +22,7 @@ import {
 } from './costs.ts';
 import { badRequest, notFound } from './errors.ts';
 import { DATE, odometerIssues } from './journal.ts';
-import { parse, type Viewer } from './members.ts';
+import { ownerOn, parse, type Viewer } from './members.ts';
 import { costContext, currentYear, inYearOf, tripsWithRiders, unrecordedCost, withCost } from './trips.ts';
 
 export interface Money {
@@ -74,7 +74,9 @@ export async function money(db: Db, year = currentYear()): Promise<Money> {
     amount: zl(r.amount),
     kind: r.kind as RepairKind,
   }));
-  const owners = (await db.select({ id: members.id }).from(members).where(eq(members.active, true))).map((m) => m.id);
+  // нехватку резерва делят те, кто был совладельцем в день ремонта
+  const people = await db.select().from(members);
+  const owners = (date: string) => people.filter((m) => ownerOn(m, date)).map((m) => m.id);
   const accruals = all
     .filter((t) => !t.shared)
     .flatMap((t) => withCost(t, ctx.ratesOf).cost.riders.map((r) => ({ date: t.date, memberId: r.memberId, amort: r.amort })));
@@ -91,13 +93,26 @@ export async function money(db: Db, year = currentYear()): Promise<Money> {
     .filter((r) => r.date > from && r.date <= today && r.kind !== 'upgrade' && !r.chargedTo)
     .reduce((sum, r) => sum + r.amount, 0);
 
-  // кто что заплатил: заправки, расходы поездок, ремонты; «вскладчину на месте» — каждый оплатил свою долю сам
+  // долги: только то, что после отметки «рассчитались до» — старая история не превращается в долги
+  const settled = ctx.settings.settledUntil ?? '';
+  const open = (d: string) => d > settled;
   const refuelsMode = ctx.settings.fuelMode === 'refuels';
+  const openTrips = inYear.filter((t) => open(t.date));
+  const openRepairs = yearRepairs.filter((r) => open(r.date));
+  const openTransfers = yearTransfers.filter((t) => open(t.date));
+  const openSummary = moneySummary(
+    openTrips.map((t) => ({ ...t, extras: t.extras?.amount ?? 0 })),
+    unrecordedCost(
+      issues.filter((i) => open(i.date)),
+      ctx,
+    ),
+  );
+  // кто что заплатил: заправки, расходы поездок, ремонты; «вскладчину на месте» — каждый оплатил свою долю сам
   const paid: { paidBy: string | null; amount: number }[] = refuelsMode
-    ? yearRefuels.map((r) => ({ paidBy: r.paidBy, amount: zl(r.amount) }))
+    ? yearRefuels.filter((r) => open(r.date)).map((r) => ({ paidBy: r.paidBy, amount: zl(r.amount) }))
     : [];
-  for (const r of yearRepairs) paid.push({ paidBy: r.paidBy, amount: r.amount });
-  for (const t of refuelsMode ? inYear : []) {
+  for (const r of openRepairs) paid.push({ paidBy: r.paidBy, amount: r.amount });
+  for (const t of refuelsMode ? openTrips : []) {
     if (!t.extras) continue;
     if (t.extras.paidBy !== null || t.shared) paid.push({ paidBy: t.extras.paidBy, amount: t.extras.amount });
     else for (const r of t.cost.riders) paid.push({ paidBy: r.memberId, amount: r.extras });
@@ -114,14 +129,15 @@ export async function money(db: Db, year = currentYear()): Promise<Money> {
     rates: ctx.ratesOf({ date: new Date().toISOString().slice(0, 10), odoStart: null, odoEnd: null }),
     summary,
     ledger:
-      refuelsMode || yearRepairs.length || yearTransfers.length
+      // год целиком до отметки — все рассчитались, считать нечего
+      `${year}-12-31` > settled && (refuelsMode || openRepairs.length || openTransfers.length)
         ? ledger(
             [
-              ...(refuelsMode ? fuelUsed(summary) : []),
-              ...yearRepairs.flatMap((r) => (r.split?.shares ?? []).map((sh) => ({ id: sh.memberId, amount: sh.amount }))),
+              ...(refuelsMode ? fuelUsed(openSummary) : []),
+              ...openRepairs.flatMap((r) => (r.split?.shares ?? []).map((sh) => ({ id: sh.memberId, amount: sh.amount }))),
             ],
             paid,
-            yearTransfers.map(asZl),
+            openTransfers.map(asZl),
           )
         : null,
     repairsByMember: [...repairsBy].map(([memberId, amount]) => ({ memberId, amount: Math.round(amount * 100) / 100 })),
@@ -142,7 +158,7 @@ const money2 = z
   .max(100_000, 'Слишком большая сумма — проверьте')
   .transform((v) => Math.round(v * 100));
 
-const refuelInput = z.object({
+export const refuelInput = z.object({
   date: isoDate,
   odometer: z.number().int().min(0).max(9_999_999).nullish(),
   liters: z.number().positive('Литры больше нуля').max(500, 'Больше 500 л — проверьте'),

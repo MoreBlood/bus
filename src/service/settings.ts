@@ -14,7 +14,11 @@ const KEY = 'costs';
 export async function getSettings(db: Q): Promise<CostSettings> {
   const row = await db.select({ value: settings.value }).from(settings).where(eq(settings.key, KEY)).get();
   const v = (row?.value as Partial<CostSettings> | undefined) ?? {};
-  return { fuelMode: v.fuelMode ?? DEFAULT_SETTINGS.fuelMode, fuelType: v.fuelType ?? DEFAULT_SETTINGS.fuelType };
+  return {
+    fuelMode: v.fuelMode ?? DEFAULT_SETTINGS.fuelMode,
+    fuelType: v.fuelType ?? DEFAULT_SETTINGS.fuelType,
+    settledUntil: v.settledUntil ?? null,
+  };
 }
 
 /** Периоды ставок по возрастанию даты; пока ни одного — ставки по умолчанию «с самого начала». */
@@ -28,7 +32,13 @@ const requireAdmin = (v: Viewer) => {
   if (!v.isAdmin) throw forbidden('Ставки меняют только админы');
 };
 
-const settingsInput = z.object({ fuelMode: z.enum(['rate', 'refuels']), fuelType: z.enum(['diesel', 'petrol', 'lpg', 'electric']) }).partial();
+const settingsInput = z
+  .object({
+    fuelMode: z.enum(['rate', 'refuels']),
+    fuelType: z.enum(['diesel', 'petrol', 'lpg', 'electric']),
+    settledUntil: z.string().regex(DATE, 'Дата в формате ГГГГ-ММ-ДД').nullable(),
+  })
+  .partial();
 
 export async function saveSettings(db: Db, v: Viewer, body: unknown) {
   requireAdmin(v);
@@ -36,7 +46,10 @@ export async function saveSettings(db: Db, v: Viewer, body: unknown) {
   // совместимость: старые клиенты присылали ставки вместе с режимом — это новый период «с сегодня»
   if (raw.amortPerKm !== undefined || raw.fuelPer100 !== undefined || raw.fuelPrice !== undefined)
     await savePeriod(db, v, { amortPerKm: raw.amortPerKm, fuelPer100: raw.fuelPer100, fuelPrice: raw.fuelPrice });
-  const next = { ...(await getSettings(db)), ...parse(settingsInput, { fuelMode: raw.fuelMode, fuelType: raw.fuelType }) };
+  const next = {
+    ...(await getSettings(db)),
+    ...parse(settingsInput, { fuelMode: raw.fuelMode, fuelType: raw.fuelType, settledUntil: raw.settledUntil }),
+  };
   await db.insert(settings).values({ key: KEY, value: next }).onConflictDoUpdate({ target: settings.key, set: { value: next } });
   return next;
 }

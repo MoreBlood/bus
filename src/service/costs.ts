@@ -21,6 +21,8 @@ export const FUEL_TYPES: Record<FuelType, { label: string; unit: string }> = {
 
 /** Общие настройки (не зависят от даты). */
 export interface CostSettings {
+  /** всё до этой даты включительно рассчитано: история для статистики и резерва, но не долги */
+  settledUntil?: string | null;
   /** rate — бак на бак: топливо делят в поездке по ставке; refuels — учёт заправок и долгов */
   fuelMode: FuelMode;
   fuelType: FuelType;
@@ -455,15 +457,20 @@ export interface Reserve {
 export function repairShares(
   accruals: { date: string; memberId: string; amort: number }[],
   repairs: RepairLike[],
-  owners: string[],
+  /** владельцы на дату ремонта (или один список на всё время) */
+  owners: string[] | ((date: string) => string[]),
 ): { splits: Map<string, RepairSplit>; reserve: Reserve } {
+  const ownersOn = typeof owners === 'function' ? owners : () => owners;
   const acc = [...accruals].sort((a, b) => a.date.localeCompare(b.date));
   const reps = [...repairs].sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
   const left = new Map<string, number>();
   const accrued = new Map<string, number>();
   const spent = new Map<string, number>();
   const add = (m: Map<string, number>, id: string, v: number) => m.set(id, (m.get(id) ?? 0) + v);
-  const equal = (amount: number) => (owners.length ? owners.map((id) => ({ memberId: id, amount: amount / owners.length })) : []);
+  const equal = (amount: number, date: string) => {
+    const list = ownersOn(date);
+    return list.length ? list.map((id) => ({ memberId: id, amount: amount / list.length })) : [];
+  };
   const splits = new Map<string, RepairSplit>();
   let i = 0;
   let overflowAll = 0;
@@ -478,7 +485,7 @@ export function repairShares(
       continue;
     }
     if (r.kind === 'upgrade') {
-      splits.set(r.id, { shares: equal(r.amount), fromReserve: 0, overflow: 0, how: 'owners' });
+      splits.set(r.id, { shares: equal(r.amount, r.date), fromReserve: 0, overflow: 0, how: 'owners' });
       continue;
     }
     const pool = [...left.values()].reduce((s, v) => s + Math.max(0, v), 0);
@@ -493,7 +500,7 @@ export function repairShares(
         add(spent, id, part);
       }
     const overflow = r.amount - take;
-    for (const s of equal(overflow)) add(by, s.memberId, s.amount);
+    for (const s of equal(overflow, r.date)) add(by, s.memberId, s.amount);
     overflowAll += overflow;
     splits.set(r.id, {
       shares: [...by].map(([memberId, amount]) => ({ memberId, amount: round2(amount) })),

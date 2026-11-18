@@ -178,6 +178,55 @@ describe('деньги', () => {
     assert.equal((await post('/api/repairs/delete', { id: fault.body.id })).status, 200);
   });
 
+  it('история: бывший совладелец в поездках до ухода, импорт пачкой, рассчитались до даты', async () => {
+    const former = (await post('/api/members', { name: 'Петя', active: false, leftOn: '2024-06-01' })).body.id;
+    const misha = (await get('/api/members')).body.find((m: { name: string }) => m.name === 'Миша').id;
+    // до ухода — можно, после — нет
+    assert.equal((await post('/api/trips', { date: '2024-05-01', riders: [{ memberId: former, guests: 0 }], km: 120 })).status, 200);
+    const late = await post('/api/trips', { date: '2024-07-01', riders: [{ memberId: former, guests: 0 }], km: 50 });
+    assert.equal(late.status, 400);
+    assert.match(late.body.error, /не совладелец с 2024-06-01/);
+    // пришёл позже — раньше даты прихода его не записать
+    const newbie = (await post('/api/members', { name: 'Новичок', joinedOn: '2025-01-01' })).body.id;
+    const early = await post('/api/trips', { date: '2024-12-01', riders: [{ memberId: newbie, guests: 0 }], km: 10 });
+    assert.match(early.body.error, /совладелец только с 2025-01-01/);
+
+    const batch = {
+      trips: [
+        { date: '2023-07-18', endDate: '2023-07-26', riders: [{ memberId: misha, guests: 1 }, { memberId: former, guests: 0 }], km: 2500, note: 'Хорватия, примерно' },
+        { date: '2023-09-02', riders: [{ memberId: former, guests: 0 }], km: 80 },
+        { date: '2023-10-10', riders: [], km: 30 },
+      ],
+      repairs: [{ date: '2023-08-01', title: 'Сцепление', amount: 2000, paidBy: former }],
+      refuels: [{ date: '2023-07-18', liters: 70, amount: 450, paidBy: misha }],
+    };
+    // предпросмотр: третья поездка без участников — ошибка, ничего не записано
+    const dry = (await post('/api/import', batch)).body;
+    assert.equal(dry.written, false);
+    assert.equal(dry.errors, 1);
+    assert.equal(dry.rows.find((r: { error?: string }) => r.error).index, 2);
+    assert.equal(dry.byYear['2023'].trips, 2);
+    assert.equal(dry.byYear['2023'].km, 2580);
+    batch.trips.pop();
+    const ok = (await post('/api/import', { ...batch, dryRun: false })).body;
+    assert.equal(ok.written, true, JSON.stringify(ok));
+    assert.deepEqual(ok.counts, { trips: 2, refuels: 1, repairs: 1 });
+    // повтор той же пачки — дубли, без подтверждения не пишется
+    const again = (await post('/api/import', { ...batch, dryRun: false })).body;
+    assert.equal(again.written, false);
+    assert.equal(again.duplicates, 4);
+    assert.equal((await get('/api/journal?year=2023')).body.trips.length, 2);
+
+    // сцепление Пети в 2023 — долг; отметка «рассчитались до» закрывает старый год
+    const m2023 = (await get('/api/money?year=2023')).body;
+    assert.ok(m2023.ledger.settlements.some((x: { to: string }) => x.to === former));
+    assert.equal((await post('/api/settings', { settledUntil: '2023-12-31' })).status, 200);
+    const settled = (await get('/api/money?year=2023')).body;
+    assert.equal(settled.ledger, null);
+    assert.ok(settled.reserve.spent > 0, 'резерв помнит историю');
+    assert.equal((await post('/api/settings', { settledUntil: null })).status, 200);
+  });
+
   it('ставки в разумных пределах', async () => {
     assert.equal((await post('/api/settings', { fuelType: 'kerosene' })).status, 400);
   });
@@ -240,7 +289,7 @@ describe('MCP', () => {
     );
     assert.equal(init.result.serverInfo.name, 'bus');
     const tools = (await data(await mcp(2, 'tools/list'))).result.tools.map((t: { name: string }) => t.name);
-    for (const name of ['get_journal', 'list_members', 'add_trip', 'update_trip', 'delete_trip', 'add_repair', 'get_money'])
+    for (const name of ['get_journal', 'list_members', 'add_trip', 'update_trip', 'delete_trip', 'add_repair', 'get_money', 'import_history', 'add_member'])
       assert.ok(tools.includes(name), name);
   });
 
@@ -255,5 +304,17 @@ describe('MCP', () => {
     );
     assert.equal(bad.result.isError, true);
     assert.match(bad.result.content[0].text, /после должен быть больше/);
+  });
+
+  it('импорт истории через MCP — сначала предпросмотр', async () => {
+    const res = await data(
+      await mcp(5, 'tools/call', {
+        name: 'import_history',
+        arguments: { trips: [{ date: '2022-05-01', shared: true, km: 40, note: 'перегон, примерно' }] },
+      }),
+    );
+    const r = JSON.parse(res.result.content[0].text);
+    assert.equal(r.written, false);
+    assert.equal(r.byYear['2022'].km, 40);
   });
 });

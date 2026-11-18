@@ -162,6 +162,7 @@ export function createApp({ service, auth }: { service: Service; auth: Auth | nu
   api.post('/refuels', async (c) => c.json(await service.createRefuel(c.get('viewer'), await body(c))));
   api.post('/refuels/update', async (c) => c.json(await service.updateRefuel(c.get('viewer'), await body(c))));
   api.post('/refuels/delete', async (c) => c.json(await service.deleteRefuel(c.get('viewer'), (await body(c)).id)));
+  api.post('/import', async (c) => c.json(await service.importHistory(c.get('viewer'), await body(c))));
   api.get('/repairs/:id', async (c) => c.json(await service.repair(c.req.param('id'))));
   api.post('/repairs', async (c) => c.json(await service.createRepair(c.get('viewer'), await body(c))));
   api.post('/repairs/update', async (c) => c.json(await service.updateRepair(c.get('viewer'), await body(c))));

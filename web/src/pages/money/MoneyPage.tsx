@@ -1,4 +1,6 @@
 // Деньги буса: сколько стоит километр, кто сколько должен за год, ставки, заправки и переводы.
+
+import { SettleUntil } from '@features/settle-until/SettleUntil';
 import { Select } from '@radix-ui/themes';
 import { createTransfer, deleteTransfer, errorText, fetchMoney } from '@shared/api/client';
 import type { FuelMode, Money } from '@shared/api/types';
@@ -64,6 +66,8 @@ export function MoneyPage() {
 
   const perKm = m ? m.rates.amortPerKm + m.rates.fuelPerKm : 0;
   const account = (id: string) => m?.ledger?.accounts.find((a) => a.id === id);
+  // год целиком до отметки «рассчитались до» — показать, что долгов нет не по ошибке
+  const settledYear = !!m?.settings.settledUntil && `${m.year}-12-31` <= m.settings.settledUntil;
   const repairOf = (id: string) => m?.repairsByMember.find((r) => r.memberId === id)?.amount ?? 0;
   // пришли из мастера ремонта (/money#repairs-title) — показать раздел
   const { hash } = useLocation();
@@ -149,12 +153,14 @@ export function MoneyPage() {
             />
           )}
 
-          {m?.ledger && (
+          {m && (m.ledger || settledYear) && (
             <section className="section" aria-labelledby="settle-title">
               <h2 className="section__title" id="settle-title" style={{ marginBottom: 10 }}>
                 Кто кому должен
               </h2>
-              {m.ledger.settlements.length ? (
+              {!m.ledger ? (
+                <p className="prose">За {m.year} все рассчитались.</p>
+              ) : m.ledger.settlements.length ? (
                 <ul className="people">
                   {m.ledger.settlements.map((s) => (
                     <li key={`${s.from}-${s.to}`} className="person">
@@ -181,6 +187,11 @@ export function MoneyPage() {
               ) : (
                 <p className="prose">Все в расчёте.</p>
               )}
+              <SettleUntil
+                settledUntil={m.settings.settledUntil ?? null}
+                isAdmin={!!viewer?.isAdmin}
+                onSaved={load}
+              />
             </section>
           )}
 
