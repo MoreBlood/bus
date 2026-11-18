@@ -1,7 +1,7 @@
 {
   "name": "bus",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.3.0",
   "type": "module",
   "description": "Общий бус: бортжурнал поездок и участники. Hono + Drizzle + Turso + Better Auth (GitHub) + React. Vercel.",
   "main": "src/index.ts",
